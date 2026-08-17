@@ -1,4 +1,4 @@
-import { ipcRenderer } from 'electron';
+import { ipcRenderer, IpcRendererEvent } from 'electron';
 import React, { FunctionComponent, useEffect, useState } from 'react';
 
 import { IpcMessage } from '../../../constants';
@@ -19,7 +19,7 @@ export const FullscreenVisualizer: FunctionComponent<Props> = () => {
   useEffect(() => {
     ipcRenderer.send(IpcMessage.ScreenSize);
 
-    ipcRenderer.on(IpcMessage.ScreenSize, (_: Event, displaySize: Size) => {
+    ipcRenderer.on(IpcMessage.ScreenSize, (_: IpcRendererEvent, displaySize: Size) => {
       setSize(() => displaySize);
     });
   }, []);

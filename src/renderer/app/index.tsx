@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { Display, ipcRenderer } from 'electron';
+import { Display, ipcRenderer, IpcRendererEvent } from 'electron';
 import React, { FunctionComponent, useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
@@ -109,7 +109,9 @@ export const App: FunctionComponent = () => {
   );
 
   useEffect(() => {
-    if (currentlyPlaying.userProfile?.accountType !== AccountType.Premium && state.showFreemiumWarning) {
+    const accountType = currentlyPlaying.userProfile?.accountType;
+    // wait for the profile to load before deciding the account isn't premium
+    if (accountType && accountType !== AccountType.Premium && state.showFreemiumWarning) {
       const playbackDisabledMessage = 'Account is not premium, playback controls disabled.';
       console.warn(playbackDisabledMessage);
       setMessage(playbackDisabledMessage);
@@ -188,21 +190,21 @@ export const App: FunctionComponent = () => {
       document.getElementById('app-body').addEventListener('mousedown', onMouseDown);
     });
 
-    ipcRenderer.on(IpcMessage.WindowMoved, (_: Event, data: { x: number; y: number }) => {
+    ipcRenderer.on(IpcMessage.WindowMoved, (_: IpcRendererEvent, data: { x: number; y: number }) => {
       dispatch({
         type: SettingsActionType.SetWindowPos,
         payload: data,
       });
     });
 
-    ipcRenderer.on(IpcMessage.WindowResized, (_: Event, size: number) => {
+    ipcRenderer.on(IpcMessage.WindowResized, (_: IpcRendererEvent, size: number) => {
       dispatch({
         type: SettingsActionType.SetSize,
         payload: size,
       });
     });
 
-    ipcRenderer.on(IpcMessage.SideChanged, (_: Event, { isOnLeft }: { isOnLeft: boolean }) => {
+    ipcRenderer.on(IpcMessage.SideChanged, (_: IpcRendererEvent, { isOnLeft }: { isOnLeft: boolean }) => {
       dispatch({
         type: SettingsActionType.SetIsOnLeft,
         payload: isOnLeft,

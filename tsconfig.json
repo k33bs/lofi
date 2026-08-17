@@ -10,6 +10,7 @@
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "noUnusedLocals": true,
+    "skipLibCheck": true,
     "sourceMap": true,
     "target": "ES2021",
     "types": ["node", "lodash", "electron"]

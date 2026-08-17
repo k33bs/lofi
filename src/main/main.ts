@@ -9,6 +9,7 @@ import {
   BrowserWindowConstructorOptions,
   HandlerDetails,
   ipcMain,
+  IpcMainEvent,
   Menu,
   nativeImage,
   Rectangle,
@@ -120,7 +121,7 @@ const createMainWindow = (): void => {
 
   showDevTool(mainWindow, !!settings?.isDebug);
 
-  ipcMain.on(IpcMessage.WindowMoving, (_: Event, { mouseX, mouseY }: MouseData) => {
+  ipcMain.on(IpcMessage.WindowMoving, (_: IpcMainEvent, { mouseX, mouseY }: MouseData) => {
     const { x, y } = screen.getCursorScreenPoint();
 
     const bounds: Partial<Rectangle> = {
@@ -146,11 +147,11 @@ const createMainWindow = (): void => {
     mainWindow.webContents.send(IpcMessage.WindowMoved, bounds);
   });
 
-  ipcMain.on(IpcMessage.WindowMoved, (_: Event) => {
+  ipcMain.on(IpcMessage.WindowMoved, (_: IpcMainEvent) => {
     initialBounds = null;
   });
 
-  ipcMain.on(IpcMessage.ScreenSize, (_: Event) => {
+  ipcMain.on(IpcMessage.ScreenSize, (_: IpcMainEvent) => {
     const bounds = mainWindow.getBounds();
     const { bounds: displayBounds } = screen.getDisplayMatching(bounds);
 
@@ -174,7 +175,7 @@ const createMainWindow = (): void => {
 
   ipcMain.on(
     IpcMessage.SettingsChanged,
-    (_: Event, { x, y, size, isAlwaysOnTop, isDebug, isVisibleInTaskbar, visualizationScreenId }: Settings) => {
+    (_: IpcMainEvent, { x, y, size, isAlwaysOnTop, isDebug, isVisibleInTaskbar, visualizationScreenId }: Settings) => {
       setAlwaysOnTop({ window: mainWindow, isAlwaysOnTop });
       mainWindow.setSkipTaskbar(!isVisibleInTaskbar);
       showDevTool(mainWindow, isDebug);
@@ -198,7 +199,7 @@ const createMainWindow = (): void => {
     app.quit();
   });
 
-  ipcMain.on(IpcMessage.OpenLink, (_: Event, url: ApplicationUrl) => {
+  ipcMain.on(IpcMessage.OpenLink, (_: IpcMainEvent, url: ApplicationUrl) => {
     if (!Object.values(ApplicationUrl).includes(url)) {
       // eslint-disable-next-line no-console
       console.error(`Invalid url ${url}`);
@@ -207,19 +208,19 @@ const createMainWindow = (): void => {
     shell.openExternal(url);
   });
 
-  ipcMain.on(IpcMessage.ShowAbout, (_: Event) => {
+  ipcMain.on(IpcMessage.ShowAbout, (_: IpcMainEvent) => {
     mainWindow.webContents.send(IpcMessage.ShowAbout);
   });
 
-  ipcMain.on(IpcMessage.ShowFullscreenVizualizer, (_: Event) => {
+  ipcMain.on(IpcMessage.ShowFullscreenVizualizer, (_: IpcMainEvent) => {
     mainWindow.webContents.send(IpcMessage.ShowFullscreenVizualizer);
   });
 
-  ipcMain.on(IpcMessage.ShowSettings, (_: Event) => {
+  ipcMain.on(IpcMessage.ShowSettings, (_: IpcMainEvent) => {
     mainWindow.webContents.send(IpcMessage.ShowSettings);
   });
 
-  ipcMain.on(IpcMessage.TrackLiked, (_: Event, isTrackLiked: boolean) => {
+  ipcMain.on(IpcMessage.TrackLiked, (_: IpcMainEvent, isTrackLiked: boolean) => {
     if (tray) {
       tray.setImage(isTrackLiked ? iconTrackLiked : icon);
     }

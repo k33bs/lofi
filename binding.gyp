@@ -28,7 +28,7 @@
                 'OTHER_CFLAGS': [
                   '-fno-objc-arc',
                   '-ObjC++',
-                  '-std=c++11'
+                  '-std=c++20'
                 ],
             },
           }
@@ -77,7 +77,7 @@
                 'CLANG_CXX_LIBRARY': 'libc++',
                 'OTHER_CFLAGS': [
                   '-ObjC++',
-                  '-std=c++11'
+                  '-std=c++20'
                 ],
             },
           }
