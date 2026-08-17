@@ -17,7 +17,7 @@ let onTokenRetrieved: (data: AuthData) => void = null;
 
 const AUTH_URL = 'https://accounts.spotify.com/authorize';
 const AUTH_TOKEN_URL = 'https://accounts.spotify.com/api/token';
-const AUTH_CLIENT_ID = '69eca11b9ccd4bd3a7e01e6f9ddb5205';
+const AUTH_CLIENT_ID = 'cc92fcea92e9472ca1040d6a4abcb773';
 const AUTH_PORT = 41419;
 const AUTH_SCOPES = [
   'user-read-playback-state',
@@ -49,7 +49,7 @@ export const getAuthUrl = (): string => {
   const scopes = AUTH_SCOPES.join('%20');
 
   const authUrl =
-    `${AUTH_URL}?response_type=code&client_id=${AUTH_CLIENT_ID}&redirect_uri=http://localhost:${AUTH_PORT}&` +
+    `${AUTH_URL}?response_type=code&client_id=${AUTH_CLIENT_ID}&redirect_uri=http://127.0.0.1:${AUTH_PORT}&` +
     `scope=${scopes}&state=${codeState}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
   return authUrl;
@@ -120,7 +120,7 @@ const retrieveAccessToken = async (verifier: string, code: string): Promise<Auth
 
   const body =
     `client_id=${AUTH_CLIENT_ID}&grant_type=authorization_code&` +
-    `code=${code}&redirect_uri=http://localhost:${AUTH_PORT}&code_verifier=${verifier}`;
+    `code=${code}&redirect_uri=http://127.0.0.1:${AUTH_PORT}&code_verifier=${verifier}`;
 
   const res = await fetch(AUTH_TOKEN_URL, {
     method: 'POST',
