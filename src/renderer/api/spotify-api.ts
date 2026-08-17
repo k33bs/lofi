@@ -94,7 +94,7 @@ class SpotifyApi {
   }
 
   async getCurrentlyPlaying(): Promise<SpotifyCurrentlyPlaying> {
-    return this.fetch<SpotifyCurrentlyPlaying>('/me/player?type=episode,track', {
+    return this.fetch<SpotifyCurrentlyPlaying>('/me/player?additional_types=episode', {
       method: 'GET',
     });
   }
@@ -117,17 +117,21 @@ class SpotifyApi {
     });
   }
 
+  // Spotify's February 2026 migration replaced /me/tracks with /me/library (URIs instead of ids)
   async like(isLiked: boolean, trackId: string): Promise<void> {
     const verb = isLiked ? 'DELETE' : 'PUT';
-    await this.fetch(`/me/tracks?ids=${trackId}`, {
+    await this.fetch(`/me/library?uris=${encodeURIComponent(`spotify:track:${trackId}`)}`, {
       method: verb,
     });
   }
 
   async isTrackLiked(trackId: string): Promise<boolean> {
-    const likedResponse: Array<boolean> = await this.fetch(`/me/tracks/contains?ids=${trackId}`, {
-      method: 'GET',
-    });
+    const likedResponse: Array<boolean> = await this.fetch(
+      `/me/library/contains?uris=${encodeURIComponent(`spotify:track:${trackId}`)}`,
+      {
+        method: 'GET',
+      }
+    );
 
     if (!likedResponse || likedResponse.length === 0) {
       return false;
@@ -170,8 +174,13 @@ class SpotifyApi {
     const res = await fetch(API_URL + input, initWithBearer);
     switch (res.status) {
       case 200: {
-        const responseLength = parseInt(res.headers.get('content-length'), 10);
-        return responseLength > 0 ? res.json() : null;
+        // some endpoints return 200 with an empty or non-JSON body
+        const text = await res.text();
+        try {
+          return text ? JSON.parse(text) : null;
+        } catch {
+          return null;
+        }
       }
       case 204: {
         return null;
@@ -195,8 +204,14 @@ class SpotifyApi {
       }
     }
 
-    const { error } = await res.json();
-    throw new Error(`${error.status}: ${error.message}`);
+    // error bodies are not guaranteed to be JSON
+    let message = res.statusText || 'Request failed';
+    try {
+      message = (await res.json()).error.message;
+    } catch {
+      // keep statusText
+    }
+    throw new Error(`${res.status}: ${message}`);
   }
 }
 

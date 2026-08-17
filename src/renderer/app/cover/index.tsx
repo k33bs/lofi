@@ -157,7 +157,8 @@ export const Cover: FunctionComponent<Props> = ({ settings, message, onVisualiza
 
     try {
       const currentlyPlaying = await SpotifyApiInstance.getCurrentlyPlaying();
-      if (!currentlyPlaying?.is_playing) {
+      // no response means no active device — seeking would just 404
+      if (currentlyPlaying && !currentlyPlaying.is_playing) {
         await SpotifyApiInstance.seek(state.progress);
       }
     } catch (error) {
