@@ -5,7 +5,7 @@ import { SpotifyApiInstance } from '../../../api/spotify-api';
 
 const THROTTLE_POLL_MS = 5000;
 
-const WaitingWrapper = styled.div`
+const WaitingWrapper = styled.div<{ $isHoverOnly: boolean }>`
   overflow: hidden;
   position: absolute;
   top: 0;
@@ -15,6 +15,8 @@ const WaitingWrapper = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  transition: 0.1s;
+  ${({ $isHoverOnly }) => $isHoverOnly && 'opacity: 0;'}
 
   p {
     margin: 0;
@@ -48,7 +50,11 @@ const formatWait = (untilMs: number): string => {
   return totalMinutes > 1 ? `~${totalMinutes}m` : '<1m';
 };
 
-export const Waiting: FunctionComponent = () => {
+interface Props {
+  isHoverOnly?: boolean;
+}
+
+export const Waiting: FunctionComponent<Props> = ({ isHoverOnly = false }) => {
   const [throttledUntil, setThrottledUntil] = useState(SpotifyApiInstance.getThrottledUntil());
 
   useEffect(() => {
@@ -57,7 +63,7 @@ export const Waiting: FunctionComponent = () => {
   }, []);
 
   return (
-    <WaitingWrapper className="centered draggable">
+    <WaitingWrapper $isHoverOnly={isHoverOnly} className="centered draggable controls">
       <p className="draggable">
         <i className="fab fa-spotify draggable" />
       </p>

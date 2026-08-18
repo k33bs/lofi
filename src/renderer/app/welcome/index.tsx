@@ -1,12 +1,21 @@
-import React, { FunctionComponent } from 'react';
+import React, { FunctionComponent, useEffect, useState } from 'react';
 import styled from 'styled-components';
 
-import { VisualizationType } from '../../../models/settings';
+import { Settings, VisualizationType } from '../../../models/settings';
+import { getSystemVolume } from '../../api/system-audio';
 import { LoginButton } from '../../components';
 import wavesImage from '../../static/waves.gif';
 import Menu from '../cover/menu';
+import { Visualizer } from '../cover/visualizer';
 
-const WelcomeContent = styled.div`
+const AUDIO_PRESENCE_POLL_MS = 500;
+const AUDIO_SILENCE_HIDE_MS = 5000;
+const AUDIBLE_THRESHOLD = 0.02;
+// let the branding be seen after launch before the music fades it out
+const BRANDING_GRACE_MS = 6000;
+
+const WelcomeContent = styled.div<{ $isFadedOut: boolean }>`
+  opacity: ${({ $isFadedOut }) => ($isFadedOut ? 0 : 1)};
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -50,20 +59,66 @@ const WelcomeControls = styled.div`
 
 interface Props {
   onSetupNeeded: () => void;
+  settings: Settings;
+  onVisualizationChange: () => void;
+  onVisualizationCycle?: (isPrevious: boolean) => void;
 }
 
-export const Welcome: FunctionComponent<Props> = ({ onSetupNeeded }) => (
-  <div className="full">
-    <Menu isWelcome visualizationType={VisualizationType.None} />
-    <WelcomeContent className="welcome-content centered draggable">
-      <Brand className="brand draggable">
-        lo
-        <BrandHighlight className="brand-highlight draggable">fi</BrandHighlight>
-      </Brand>
-      <BrandTagLine className="brand-tagline draggable">a tiny player</BrandTagLine>
-    </WelcomeContent>
-    <WelcomeControls className="centered controls draggable">
-      <LoginButton onSetupNeeded={onSetupNeeded} />
-    </WelcomeControls>
-  </div>
-);
+export const Welcome: FunctionComponent<Props> = ({
+  onSetupNeeded,
+  settings,
+  onVisualizationChange,
+  onVisualizationCycle,
+}) => {
+  const isVisualizing = settings.visualizationType === VisualizationType.Small;
+  const [hasAudio, setHasAudio] = useState(false);
+
+  // while the visualizer hears music, the branding steps aside; after a few
+  // seconds of silence it fades back in
+  useEffect(() => {
+    if (!isVisualizing) {
+      setHasAudio(false);
+      return undefined;
+    }
+
+    let lastAudibleAt = 0;
+    const graceUntil = Date.now() + BRANDING_GRACE_MS;
+    const intervalId = setInterval(() => {
+      const volume = getSystemVolume();
+      if (volume !== null && volume > AUDIBLE_THRESHOLD) {
+        lastAudibleAt = Date.now();
+      }
+      setHasAudio(Date.now() > graceUntil && Date.now() - lastAudibleAt < AUDIO_SILENCE_HIDE_MS);
+    }, AUDIO_PRESENCE_POLL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [isVisualizing]);
+
+  return (
+    <div className="full">
+      <Menu
+        visualizationType={settings.visualizationType}
+        onVisualizationChange={onVisualizationChange}
+        onVisualizationCycle={onVisualizationCycle}
+      />
+      {isVisualizing && (
+        <Visualizer
+          key={settings.visualizationId}
+          visualizationId={settings.visualizationId}
+          visualizerOpacity={settings.visualizerOpacity}
+          size={{ height: settings.size, width: settings.size }}
+        />
+      )}
+      <WelcomeContent $isFadedOut={hasAudio} className="welcome-content centered draggable">
+        <Brand className="brand draggable">
+          lo
+          <BrandHighlight className="brand-highlight draggable">fi</BrandHighlight>
+        </Brand>
+        <BrandTagLine className="brand-tagline draggable">a tiny player</BrandTagLine>
+      </WelcomeContent>
+      <WelcomeControls className="centered controls draggable">
+        <LoginButton onSetupNeeded={onSetupNeeded} />
+      </WelcomeControls>
+    </div>
+  );
+};

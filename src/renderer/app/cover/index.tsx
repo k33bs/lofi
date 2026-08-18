@@ -280,7 +280,19 @@ export const Cover: FunctionComponent<Props> = ({ settings, message, onVisualiza
           />
         </>
       ) : (
-        <Waiting />
+        <>
+          {/* with the small visualization on, the shader is the idle content
+              and the status logo only appears on hover, like the menu */}
+          {visualizationType === VisualizationType.Small && (
+            <Visualizer
+              key={visualizationId}
+              visualizationId={visualizationId}
+              visualizerOpacity={visualizerOpacity}
+              size={{ height: size, width: size }}
+            />
+          )}
+          <Waiting isHoverOnly={visualizationType === VisualizationType.Small} />
+        </>
       )}
     </div>
   );

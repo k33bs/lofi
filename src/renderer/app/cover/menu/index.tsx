@@ -94,14 +94,12 @@ const MenuList = styled.ul`
 `;
 
 interface Props {
-  isWelcome?: boolean;
   visualizationType?: VisualizationType;
   onVisualizationChange?: () => void;
   onVisualizationCycle?: (isPrevious: boolean) => void;
 }
 
 const Menu: FunctionComponent<Props> = ({
-  isWelcome = false,
   visualizationType = VisualizationType.None,
   onVisualizationChange = noop,
   onVisualizationCycle = noop,
@@ -152,8 +150,9 @@ const Menu: FunctionComponent<Props> = ({
       </MenuList>
       <MenuList className="menu bottom draggable">
         {/* audio-reactive visualizations exist on Windows (native meter) and
-            macOS (loopback capture); Linux still has no audio source */}
-        {!isWelcome && (WINDOWS || MACOS) && (
+            macOS (loopback capture); Linux still has no audio source. They
+            need no Spotify session, so the welcome screen gets them too. */}
+        {(WINDOWS || MACOS) && (
           <li className="draggable">
             {visualizationType !== VisualizationType.None && (
               <button type="button" onClick={() => onVisualizationCycle(true)} className="unstyled-button vis">

@@ -1,5 +1,6 @@
 import { blueWave } from './blue-wave';
 import { VisualizeConfiguration } from './models';
+import { pulseRing } from './pulse-ring';
 import { rainbowRoad } from './rainbow-road';
 import { seascape } from './seascape';
 import { stringTheory } from './string-theory';
@@ -11,6 +12,7 @@ export interface Visualization {
 
 export const visualizations: Visualization[] = [
   { name: 'Blue Wave', visualize: blueWave },
+  { name: 'Pulse Ring', visualize: pulseRing },
   { name: 'Rainbow Road', visualize: rainbowRoad },
   { name: 'String Theory', visualize: stringTheory },
   { name: 'Seascape', visualize: seascape },

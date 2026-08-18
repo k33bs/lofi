@@ -75,13 +75,19 @@ export const visualize = (
 
   const peaks: number[] = [];
   const animate = (time: number): void => {
-    if (peaks.length >= 10) {
+    // the component unmounts by removing the canvas; without this check every
+    // toggle or shader switch would leave another animation loop running forever
+    if (!canvas.isConnected) {
+      return;
+    }
+    // a short window keeps beat attacks visible instead of averaging them away
+    if (peaks.length >= 8) {
       peaks.shift();
     }
     peaks.push(readVolume());
 
-    // average over the last 5 peaks (~100ms)
-    // should probably be done in the shader
+    // light averaging over the last few readings; the audio source already
+    // shapes the signal the Milkdrop way, so it is fed to shaders directly
     const avg = peaks.reduce((prev, curr) => prev + curr) / peaks.length / peakFactor;
 
     gl.uniform2fv(resolutionUniform, [canvas.width, canvas.height]);

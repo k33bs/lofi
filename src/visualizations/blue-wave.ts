@@ -11,7 +11,10 @@ export const blueWave = ({ canvas, timeFactor = 1000, peakFactor = 1 }: Visualiz
         
         void main() {
             vec2 p = (gl_FragCoord.xy / resolution.xy) - .5;
-            float sx = (0.01 + volume) * (p.x * p.x * 3. - (0.01 + volume)) * sin(10. * p.x - 5. * time * 0.005);
+            // gentle baseline wave; only energy above the resting level of the
+            // audio signal grows the amplitude, so quiet parts stay calm
+            float v = 0.08 + max(0.0, volume - 0.35) * 1.4;
+            float sx = v * (p.x * p.x * 3. - v) * sin(10. * p.x - 5. * time * 0.005);
             gl_FragColor = vec4(.05, .0, (5. / (420. * abs(p.y + sx))), 1);
         }
       `,

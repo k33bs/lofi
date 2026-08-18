@@ -23,7 +23,7 @@ export const rainbowRoad = ({ canvas, timeFactor = 1000, peakFactor = 1 }: Visua
     
     float dist(vec3 pos)
     {
-        pos.x += sin(pos.z * 0.2+ time * 10.0);
+        pos.x += sin(pos.z * 0.2 + time * 10.0) * (0.3 + max(0.0, volume - 0.45) * 2.6);
         pos.x = mod(pos.x, 4.0) - 2.0;
         return length(pos.yx) - 0.01;
     }
@@ -40,14 +40,14 @@ export const rainbowRoad = ({ canvas, timeFactor = 1000, peakFactor = 1 }: Visua
     
     vec3 calcColor(vec3 pos)
     {
-        return rgb2hsv(vec3(pos.x * 0.2, 1, 1));
+        return rgb2hsv(vec3(pos.x * 0.2 + volume * 0.15, 1, 1));
     }
     
     void main(){
         vec2 p = (gl_FragCoord.xy * 2.0 - resolution) / resolution.y;
         
         vec3 pos = vec3(0, 5.0, -5);
-        vec3 dir = normalize(vec3(p, 1.0));
+        vec3 dir = normalize(vec3(p, 1.35 - max(0.0, volume - 0.45) * 1.2));
         
         vec3 color = vec3(0, 0, 0) * length(p.xy) * sin(time * 10.0);
         
@@ -56,7 +56,7 @@ export const rainbowRoad = ({ canvas, timeFactor = 1000, peakFactor = 1 }: Visua
         {
             float d = dist(pos);
             pos += dir * d * 0.5;
-            color += .02 * (0.1 + volume) / d * calcColor(pos);
+            color += .02 * (0.08 + volume * 0.9) / d * calcColor(pos);
             
             depth = float(i);
         }

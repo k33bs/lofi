@@ -403,6 +403,9 @@ export const App: FunctionComponent = () => {
         />
       ) : (
         <Welcome
+          settings={state}
+          onVisualizationChange={handleVisualizationChange}
+          onVisualizationCycle={handleVisualizationCycle}
           onSetupNeeded={() => {
             setSettingsTab(SettingsTab.Spotify);
             setShouldShowSettings(true);
