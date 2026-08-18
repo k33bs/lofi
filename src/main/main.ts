@@ -18,6 +18,7 @@ import {
   Tray,
 } from 'electron';
 import Store from 'electron-store';
+import { clamp } from 'lodash';
 import * as path from 'path';
 
 import { version } from '../../version.generated';
@@ -57,6 +58,13 @@ if (process.env.NODE_ENV === 'development') {
   app.commandLine.appendSwitch('enable-logging', '1');
 }
 
+// Electron no longer infers the app name from the bundle's package.json in dev,
+// so userData would fall back to the generic "Electron" directory and settings
+// (including auth tokens) would land in the wrong place. Must run before any
+// electron-store is constructed.
+app.setName('lofi');
+app.setPath('userData', path.join(app.getPath('appData'), 'lofiapp'));
+
 Store.initRenderer();
 const store = new Store({ clearInvalidConfig: true });
 const storeSettings = store.get('settings') as Settings;
@@ -73,6 +81,10 @@ try {
 let mainWindow: BrowserWindow | null = null;
 let mousePoller: NodeJS.Timeout;
 let initialBounds: Rectangle;
+let lastMovingAt = 0;
+const DRAG_IDLE_RESET_MS = 500;
+// minimum sliver of the window that must stay reachable on some display
+const VISIBLE_MARGIN = 40;
 
 let tray: Tray = null;
 Menu.setApplicationMenu(null);
@@ -112,22 +124,43 @@ const MAIN_WINDOW_OPTIONS: BrowserWindowConstructorOptions = {
   roundedCorners: false,
 };
 
-const createMainWindow = (): void => {
-  mainWindow = new BrowserWindow(MAIN_WINDOW_OPTIONS);
+const sendWindowReady = (): void => {
+  if (!mainWindow) {
+    return;
+  }
+  const displays = screen.getAllDisplays();
+  const bounds = mainWindow.getBounds();
+  const currentDisplay = screen.getDisplayMatching(bounds);
+  const isOnLeft = checkIfAppIsOnLeftSide(currentDisplay, bounds.x, bounds.width);
+  mainWindow.webContents.send(IpcMessage.WindowReady, { isOnLeft, displays });
+};
 
-  mainWindow.setVisibleOnAllWorkspaces(true);
-
-  mainWindow.loadURL(`file://${path.join(__dirname, './index.html')}`);
-
-  showDevTool(mainWindow, !!settings?.isDebug);
+// registered ONCE at startup: ipcMain is a global singleton and listeners stack,
+// so registering these per-window would duplicate them on window recreation
+const registerIpcHandlers = (): void => {
+  // the renderer requests this on mount so recreated windows and
+  // crash-recovery remounts regain their displays and drag wiring
+  ipcMain.on(IpcMessage.WindowReady, () => {
+    sendWindowReady();
+  });
 
   ipcMain.on(IpcMessage.WindowMoving, (_: IpcMainEvent, { mouseX, mouseY }: MouseData) => {
+    if (!mainWindow) {
+      return;
+    }
     const { x, y } = screen.getCursorScreenPoint();
 
     const bounds: Partial<Rectangle> = {
       x: x - mouseX,
       y: y - mouseY,
     };
+
+    // a gap between frames means the previous drag ended without WindowMoved
+    // (crash mid-drag) — treat this frame as a fresh drag so stale bounds self-heal
+    if (Date.now() - lastMovingAt > DRAG_IDLE_RESET_MS) {
+      initialBounds = null;
+    }
+    lastMovingAt = Date.now();
 
     // Bounds increase even when set to the same value, this is a quirk of the setBounds function
     // We must keep the bounds constant to keep the window where it should be
@@ -138,6 +171,12 @@ const createMainWindow = (): void => {
       bounds.width = initialBounds.width;
       bounds.height = initialBounds.height;
     }
+
+    // clamp to the cursor's display so a glitched frame can never throw the window off-screen
+    const { workArea } = screen.getDisplayNearestPoint({ x, y });
+    const width = bounds.width ?? initialBounds.width;
+    bounds.x = clamp(bounds.x, workArea.x - width + VISIBLE_MARGIN, workArea.x + workArea.width - VISIBLE_MARGIN);
+    bounds.y = clamp(bounds.y, workArea.y, workArea.y + workArea.height - VISIBLE_MARGIN);
 
     // Use setBounds instead of setPosition
     // See: https://github.com/electron/electron/issues/9477#issuecomment-406833003
@@ -152,6 +191,9 @@ const createMainWindow = (): void => {
   });
 
   ipcMain.on(IpcMessage.ScreenSize, (_: IpcMainEvent) => {
+    if (!mainWindow) {
+      return;
+    }
     const bounds = mainWindow.getBounds();
     const { bounds: displayBounds } = screen.getDisplayMatching(bounds);
 
@@ -161,23 +203,22 @@ const createMainWindow = (): void => {
     });
   });
 
-  mainWindow.on('resize', () => {
-    moveTrackInfo(mainWindow, screen);
-  });
-
-  mainWindow.on('resized', () => {
-    const size = mainWindow.getSize();
-    const [width, height] = size;
-    const newSize = Math.min(width, height);
-    mainWindow.setSize(newSize, newSize, true);
-    mainWindow.webContents.send(IpcMessage.WindowResized, newSize);
-  });
-
   ipcMain.on(
     IpcMessage.SettingsChanged,
     (_: IpcMainEvent, { x, y, size, isAlwaysOnTop, isDebug, isVisibleInTaskbar, visualizationScreenId }: Settings) => {
+      if (!mainWindow) {
+        return;
+      }
       setAlwaysOnTop({ window: mainWindow, isAlwaysOnTop });
       mainWindow.setSkipTaskbar(!isVisibleInTaskbar);
+      // skipTaskbar is a no-op on macOS; the dock icon is the taskbar equivalent
+      if (process.platform === 'darwin') {
+        if (isVisibleInTaskbar) {
+          app.dock.show();
+        } else {
+          app.dock.hide();
+        }
+      }
       showDevTool(mainWindow, isDebug);
 
       mainWindow.setBounds({ x, y, height: size, width: size });
@@ -209,21 +250,54 @@ const createMainWindow = (): void => {
   });
 
   ipcMain.on(IpcMessage.ShowAbout, (_: IpcMainEvent) => {
-    mainWindow.webContents.send(IpcMessage.ShowAbout);
+    mainWindow?.webContents.send(IpcMessage.ShowAbout);
   });
 
   ipcMain.on(IpcMessage.ShowFullscreenVizualizer, (_: IpcMainEvent) => {
-    mainWindow.webContents.send(IpcMessage.ShowFullscreenVizualizer);
+    mainWindow?.webContents.send(IpcMessage.ShowFullscreenVizualizer);
   });
 
   ipcMain.on(IpcMessage.ShowSettings, (_: IpcMainEvent) => {
-    mainWindow.webContents.send(IpcMessage.ShowSettings);
+    mainWindow?.webContents.send(IpcMessage.ShowSettings);
   });
 
   ipcMain.on(IpcMessage.TrackLiked, (_: IpcMainEvent, isTrackLiked: boolean) => {
     if (tray) {
       tray.setImage(isTrackLiked ? iconTrackLiked : icon);
     }
+  });
+};
+
+const createMainWindow = (): void => {
+  mainWindow = new BrowserWindow(MAIN_WINDOW_OPTIONS);
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+
+  mainWindow.setVisibleOnAllWorkspaces(true);
+
+  mainWindow.loadURL(`file://${path.join(__dirname, './index.html')}`);
+
+  showDevTool(mainWindow, !!settings?.isDebug);
+
+  mainWindow.on('resize', () => {
+    moveTrackInfo(mainWindow, screen);
+  });
+
+  mainWindow.on('resized', () => {
+    // setBounds during a drag can echo size changes on scaled displays (see #118);
+    // reacting to those mid-drag fights the drag loop and flings the window.
+    // Gate on recent drag activity, not bare initialBounds — a crash mid-drag
+    // could otherwise leave resizing disabled forever
+    if (initialBounds && Date.now() - lastMovingAt < DRAG_IDLE_RESET_MS) {
+      return;
+    }
+    const size = mainWindow.getSize();
+    const [width, height] = size;
+    const newSize = Math.min(width, height);
+    mainWindow.setSize(newSize, newSize, true);
+    mainWindow.webContents.send(IpcMessage.WindowResized, newSize);
   });
 
   const windowOpenHandler = (
@@ -334,6 +408,29 @@ const createMainWindow = (): void => {
   });
 
   mainWindow.webContents.setWindowOpenHandler(windowOpenHandler);
+
+  // per-window: every created window (including recreations) needs this,
+  // not just the first one
+  mainWindow.once('ready-to-show', () => {
+    const displays = screen.getAllDisplays();
+    // same reachability rule as the drag clamp, so a drag-allowed position
+    // is never "corrected" by a recenter at next launch
+    const isAppVisible = displays.some(
+      ({ workArea: { x: areaX, y: areaY, width, height } }) =>
+        settings.x >= areaX - settings.size + VISIBLE_MARGIN &&
+        settings.x <= areaX + width - VISIBLE_MARGIN &&
+        settings.y >= areaY &&
+        settings.y <= areaY + height - VISIBLE_MARGIN
+    );
+
+    if (!isAppVisible || (settings.x === -1 && settings.y === -1)) {
+      mainWindow.center();
+    }
+
+    setAlwaysOnTop({ window: mainWindow, isAlwaysOnTop: settings.isAlwaysOnTop });
+    sendWindowReady();
+    moveTrackInfo(mainWindow, screen);
+  });
 };
 
 app.on('ready', () => {
@@ -342,7 +439,12 @@ app.on('ready', () => {
     settings = store.get('settings') as Settings;
   }
 
+  registerIpcHandlers();
   createMainWindow();
+
+  if (process.platform === 'darwin' && !settings?.isVisibleInTaskbar) {
+    app.dock.hide();
+  }
 
   tray = new Tray(icon);
 
@@ -377,28 +479,15 @@ app.on('ready', () => {
   ]);
   tray.setContextMenu(contextMenu);
   tray.setToolTip(`lofi v${version}`);
+});
 
-  mainWindow.once('ready-to-show', () => {
-    const displays = screen.getAllDisplays();
-    const isAppVisible = displays.reduce(
-      (isOutOfScreen, { workArea: { x: areaX, y: areaY, width, height } }) =>
-        isOutOfScreen ||
-        (settings.x >= areaX && settings.y >= areaY && settings.x < width + areaX && settings.y < height + areaY),
-      false
-    );
-
-    if (!isAppVisible || (settings.x === -1 && settings.y === -1)) {
-      mainWindow.center();
-    }
-
-    setAlwaysOnTop({ window: mainWindow, isAlwaysOnTop: settings.isAlwaysOnTop });
-
-    const bounds = mainWindow.getBounds();
-    const currentDisplay = screen.getDisplayMatching(bounds);
-    const isOnLeft = checkIfAppIsOnLeftSide(currentDisplay, bounds.x, bounds.width);
-    mainWindow.webContents.send(IpcMessage.WindowReady, { isOnLeft, displays });
-    moveTrackInfo(mainWindow, screen);
-  });
+// not emitted for app.quit(), so the tray Exit item still quits normally
+app.on('window-all-closed', () => {
+  // tray app: losing all windows (e.g. during crash recovery) must not quit;
+  // heal by recreating the widget instead
+  if (!mainWindow) {
+    createMainWindow();
+  }
 });
 
 app.on('activate', () => {

@@ -131,6 +131,7 @@ export const moveTrackInfo = (mainWindow: BrowserWindow, screen: Screen): void =
 export const settingsSchema = z.object({
   x: z.number(),
   y: z.number(),
+  spotifyClientId: z.string().optional(),
   visualizationId: z
     .number()
     .min(0)

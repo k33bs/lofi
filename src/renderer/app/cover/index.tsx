@@ -23,13 +23,13 @@ const ONE_MINUTE = ONE_SECOND_IN_MS * 60;
 const TRUNCATE_REGEX = /(.*?)\s[-(•].*/g;
 const truncateText = (text: string): string => text?.replace(TRUNCATE_REGEX, '$1');
 
-const CoverContent = styled.div<{ isPlaying: boolean }>`
+const CoverContent = styled.div<{ $isPlaying: boolean }>`
   background-size: cover;
   transition: 0.2s;
   display: flex;
 
-  ${({ isPlaying }) =>
-    !isPlaying &&
+  ${({ $isPlaying }) =>
+    !$isPlaying &&
     css`
       transition: 0.1s;
       filter: blur(2px) grayscale(50%);
@@ -93,9 +93,10 @@ export const Cover: FunctionComponent<Props> = ({ settings, message, onVisualiza
   }, [dispatch]);
 
   const refreshTrackLiked = useCallback(async (): Promise<void> => {
-    if (state.type === CurrentlyPlayingType.Track) {
+    if (state.type === CurrentlyPlayingType.Track || state.type === CurrentlyPlayingType.Episode) {
+      const itemType = state.type === CurrentlyPlayingType.Episode ? 'episode' : 'track';
       try {
-        const isTrackLiked = await SpotifyApiInstance.isTrackLiked(state.id);
+        const isTrackLiked = await SpotifyApiInstance.isTrackLiked(state.id, itemType);
         if (state.isLiked !== isTrackLiked) {
           ipcRenderer.send(IpcMessage.TrackLiked, isTrackLiked);
         }
@@ -110,13 +111,16 @@ export const Cover: FunctionComponent<Props> = ({ settings, message, onVisualiza
 
   useEffect(() => {
     (async () => {
-      if (state.isPlaying) {
-        if (state.id !== currentSongId) {
-          setCurrentSongId(state.id);
-          console.log(`New song '${songTitle}' by '${artist}.`);
-          await refreshTrackLiked();
-        }
+      // track changes must be handled even while paused (e.g. launched with
+      // Spotify paused on a liked track), or liked-status is never fetched.
+      // Likes changed externally mid-track are a known, accepted staleness.
+      if (state.id && state.id !== currentSongId) {
+        setCurrentSongId(state.id);
+        console.log(`New song '${songTitle}' by '${artist}.`);
+        await refreshTrackLiked();
+      }
 
+      if (state.isPlaying) {
         if (!isAlwaysShowTrackInfo && showTrackInfoTemporarilyInSeconds) {
           setShouldShowTrackInfo(true);
 
@@ -207,9 +211,10 @@ export const Cover: FunctionComponent<Props> = ({ settings, message, onVisualiza
   );
 
   useEffect(() => {
-    document.getElementById('visible-ui').addEventListener('mousewheel', onMouseWheel);
+    document.getElementById('visible-ui')?.addEventListener('mousewheel', onMouseWheel);
     return () => {
-      document.getElementById('visible-ui').removeEventListener('mousewheel', onMouseWheel);
+      // element may already be gone during teardown; throwing here unmounts the whole app
+      document.getElementById('visible-ui')?.removeEventListener('mousewheel', onMouseWheel);
     };
   }, [onMouseWheel]);
 
@@ -223,18 +228,8 @@ export const Cover: FunctionComponent<Props> = ({ settings, message, onVisualiza
     };
   }, [handlePlaybackChanged, trackInfoRefreshTimeInSeconds]);
 
-  useEffect(() => {
-    const refreshTrackLikedIntervalId = setInterval(
-      refreshTrackLiked,
-      2 * trackInfoRefreshTimeInSeconds * ONE_SECOND_IN_MS
-    );
-    return () => {
-      if (refreshTrackLikedIntervalId) {
-        clearInterval(refreshTrackLikedIntervalId);
-      }
-    };
-  }, [refreshTrackLiked, trackInfoRefreshTimeInSeconds]);
-
+  // ponytail: no interval for liked-status — it only changes on track change or
+  // heart click, and both already call refreshTrackLiked; halves the API traffic
   useEffect(() => {
     const keepAliveIntervalId = setInterval(keepAlive, ONE_MINUTE);
     return () => {
@@ -265,7 +260,7 @@ export const Cover: FunctionComponent<Props> = ({ settings, message, onVisualiza
           )}
           <CoverContent
             className="full"
-            isPlaying={state.isPlaying}
+            $isPlaying={state.isPlaying}
             style={coverUrl ? { backgroundImage: `url(${coverUrl})` } : {}}
           />
           {visualizationType === VisualizationType.Small && (

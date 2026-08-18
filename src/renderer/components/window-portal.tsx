@@ -1,9 +1,19 @@
+import { CacheProvider } from '@emotion/react';
+import { createEmotionCache, MantineProvider } from '@mantine/core';
 import { noop } from 'lodash';
-import { memo, ReactNode, useEffect, useState } from 'react';
+import React, { memo, ReactNode, useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
+import { StyleSheetManager } from 'styled-components';
 
 const copyStyles = (source: Document, target: { head: { appendChild: (arg0: unknown) => void } }): void => {
   Array.from(source.styleSheets).forEach((styleSheet: CSSStyleSheet) => {
+    // styled-components and emotion rules are injected live into the child
+    // window (StyleSheetManager target / emotion cache container) — copying
+    // them here would duplicate every rule as a stale snapshot
+    const owner = styleSheet.ownerNode as Element | null;
+    if (owner?.hasAttribute?.('data-styled') || owner?.hasAttribute?.('data-emotion')) {
+      return;
+    }
     let rules;
     try {
       rules = styleSheet.cssRules;
@@ -75,12 +85,13 @@ export const WindowPortal = memo(
     name = '',
     title = '',
     features = { width: 600, height: 640, isFullscreen: false },
-    children = {},
+    children = null,
     onOpen = noop,
     onUnload = noop,
   }: Props) => {
     const [isMounted, setIsMounted] = useState(false);
     const [container] = useState<HTMLDivElement>(() => document.createElement('div'));
+    const [styleTarget, setStyleTarget] = useState<HTMLElement>(null);
 
     useEffect(() => {
       const left = window.top.outerWidth / 2 + window.top.screenX - features.width / 2;
@@ -89,6 +100,7 @@ export const WindowPortal = memo(
 
       newWindow.document.title = title;
       newWindow.document.body.appendChild(container);
+      setStyleTarget(newWindow.document.head);
 
       setTimeout(() => copyStyles(document, newWindow.document), 0);
 
@@ -96,13 +108,42 @@ export const WindowPortal = memo(
       setIsMounted(true);
 
       return () => {
-        onUnload();
-        newWindow?.close();
+        // the child window may already be destroyed; nothing here may throw,
+        // or React unmounts the whole root
+        try {
+          onUnload();
+          newWindow?.close();
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(err);
+        }
         setIsMounted(false);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    return isMounted ? ReactDOM.createPortal(children, container) : null;
+    // styled-components and emotion (Mantine) inject rules lazily, so the one-shot
+    // copyStyles snapshot misses components first rendered inside the portal —
+    // point both engines at the child window's head instead
+    // the key MUST stay 'mantine': emotion uses it as the class prefix, and the
+    // app's .mantine-* selector overrides die under any other prefix
+    const emotionCache = useMemo(
+      () => (styleTarget ? createEmotionCache({ key: 'mantine', container: styleTarget }) : null),
+      [styleTarget]
+    );
+
+    // one cache serves both @emotion/styled (via CacheProvider) and Mantine's internals
+    return isMounted
+      ? ReactDOM.createPortal(
+          <CacheProvider value={emotionCache}>
+            <StyleSheetManager target={styleTarget}>
+              <MantineProvider inherit emotionCache={emotionCache}>
+                {children}
+              </MantineProvider>
+            </StyleSheetManager>
+          </CacheProvider>,
+          container
+        )
+      : null;
   }
 );

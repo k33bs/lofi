@@ -79,7 +79,9 @@ export const Slider = styled(Input).attrs({
 
   &::-webkit-slider-runnable-track {
     height: ${SLIDER_HEIGHT};
-    background: #ccc;
+    /* dark unfilled track, matching the original look (the old #ccc rule was
+       never actually applied under styled-components 5) */
+    background: #2b2b2b;
     border-radius: ${SLIDER_HEIGHT};
   }
 

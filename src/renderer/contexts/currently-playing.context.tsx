@@ -1,4 +1,12 @@
-import React, { createContext, Dispatch, FunctionComponent, useContext, useMemo, useReducer } from 'react';
+import React, {
+  createContext,
+  Dispatch,
+  FunctionComponent,
+  PropsWithChildren,
+  useContext,
+  useMemo,
+  useReducer,
+} from 'react';
 
 import {
   CurrentlyPlaying,
@@ -14,7 +22,7 @@ interface CurrentlyPlayingContext {
 
 const Context = createContext<CurrentlyPlayingContext>({ state: null, dispatch: null });
 
-export const CurrentlyPlayingProvider: FunctionComponent = ({ children }) => {
+export const CurrentlyPlayingProvider: FunctionComponent<PropsWithChildren> = ({ children }) => {
   const [state, dispatch] = useReducer(useCurrentlyPlayingReducer, INITIAL_STATE);
 
   const ctx: CurrentlyPlayingContext = useMemo(() => ({ state, dispatch }), [state, dispatch]);

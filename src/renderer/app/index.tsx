@@ -4,7 +4,13 @@ import React, { FunctionComponent, useCallback, useEffect, useMemo, useState } f
 import styled from 'styled-components';
 
 import { IpcMessage, WindowName } from '../../constants';
-import { AuthData, refreshAccessToken, setTokenRetrievedCallback } from '../../main/auth';
+import {
+  AuthData,
+  clearAuthCache,
+  refreshAccessToken,
+  setAuthClientId,
+  setTokenRetrievedCallback,
+} from '../../main/auth';
 import { DEFAULT_SETTINGS, Settings, VisualizationType } from '../../models/settings';
 import { visualizations } from '../../visualizations';
 import { AccountType, SpotifyApiInstance } from '../api/spotify-api';
@@ -21,6 +27,10 @@ import { Cover } from './cover';
 import { Welcome } from './welcome';
 
 const LEFT_MOUSE_BUTTON = 0;
+
+// module state survives the error boundary's crash-remount, so an open settings
+// window comes back instead of silently closing when the tree recovers
+let wasSettingsOpen = false;
 
 const VisibleUi = styled.div`
   height: 100%;
@@ -71,7 +81,11 @@ const VisibleUi = styled.div`
 
 export const App: FunctionComponent = () => {
   const [shouldShowAbout, setShouldShowAbout] = useState(false);
-  const [shouldShowSettings, setShouldShowSettings] = useState(false);
+  const [shouldShowSettings, setShouldShowSettings] = useState(wasSettingsOpen);
+
+  useEffect(() => {
+    wasSettingsOpen = shouldShowSettings;
+  }, [shouldShowSettings]);
   const [shouldShowFullscreenViz, setShouldShowFullscreenViz] = useState(false);
   const [message, setMessage] = useState('');
   const [displays, setDisplays] = useState<DisplayData[]>([]);
@@ -84,6 +98,7 @@ export const App: FunctionComponent = () => {
   const updateTokens = useCallback(
     async (data: AuthData) => {
       if (!data || !data.access_token || !data.refresh_token) {
+        clearAuthCache();
         dispatch({ type: SettingsActionType.ResetTokens });
       } else {
         dispatch({ type: SettingsActionType.SetTokens, payload: data });
@@ -131,9 +146,15 @@ export const App: FunctionComponent = () => {
     }
   }, [shouldShowFullscreenViz, visualizationType]);
 
+  // keep the auth module's client id in sync with settings; runs before the
+  // handleAuth mount effect below because it is declared first
+  useEffect(() => {
+    setAuthClientId(state?.spotifyClientId ?? '');
+  }, [state?.spotifyClientId]);
+
   const handleAuth = useCallback(async () => {
     try {
-      if (refreshToken) {
+      if (refreshToken && state?.spotifyClientId) {
         await refreshAccessToken(refreshToken);
       }
     } catch (err) {
@@ -141,75 +162,125 @@ export const App: FunctionComponent = () => {
       console.error(err);
       await updateTokens(null);
     }
-  }, [refreshToken, updateTokens]);
+  }, [refreshToken, updateTokens, state?.spotifyClientId]);
 
   useEffect(() => {
-    ipcRenderer.on(IpcMessage.ShowAbout, () => setShouldShowAbout(true));
-    ipcRenderer.on(IpcMessage.ShowFullscreenVizualizer, () => setShouldShowFullscreenViz(true));
-    ipcRenderer.on(IpcMessage.ShowSettings, () => setShouldShowSettings(true));
+    // drag wiring lives at effect scope so it registers exactly once per mount
+    // (the WindowReady handler can fire more than once and must stay idempotent)
+    let animationId = 0;
+    let isDragging = false;
+    let mouseX = 0;
+    let mouseY = 0;
 
-    ipcRenderer.on(IpcMessage.WindowReady, async (_, { displays: displayData }: { displays: Display[] }) => {
-      let animationId = 0;
-      let mouseX = 0;
-      let mouseY = 0;
+    const moveWindow = (): void => {
+      // a quick click can fire mouseup before the first scheduled frame runs;
+      // without this check the loop would start after the release and never stop
+      if (!isDragging) {
+        return;
+      }
+      ipcRenderer.send(IpcMessage.WindowMoving, { mouseX, mouseY });
+      animationId = requestAnimationFrame(moveWindow);
+    };
 
+    // eslint-disable-next-line prefer-const
+    let onMouseMove: (event: MouseEvent) => void;
+
+    const onMouseUp = ({ button }: { button: number }): void => {
+      if (button !== LEFT_MOUSE_BUTTON) {
+        return;
+      }
+
+      isDragging = false;
+      ipcRenderer.send(IpcMessage.WindowMoved);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener('mousemove', onMouseMove);
+      cancelAnimationFrame(animationId);
+    };
+
+    // the OS can swallow mouseup while the window is being moved under the cursor;
+    // any mouse event with the button released means the drag is over
+    onMouseMove = (event: MouseEvent): void => {
+      if (event.buttons === 0) {
+        onMouseUp({ button: LEFT_MOUSE_BUTTON });
+      }
+    };
+
+    const onMouseDown = (event: MouseEvent): void => {
+      const { button, clientX, clientY, target } = event;
+      const targetElement = target as unknown as Element;
+
+      const isDraggable = targetElement.classList?.contains('draggable');
+      if (button !== LEFT_MOUSE_BUTTON || !isDraggable) {
+        return;
+      }
+
+      cancelAnimationFrame(animationId);
+      isDragging = true;
+      mouseX = clientX;
+      mouseY = clientY;
+      document.addEventListener('mouseup', onMouseUp);
+      document.addEventListener('mousemove', onMouseMove);
+
+      animationId = requestAnimationFrame(moveWindow);
+    };
+
+    const onShowAbout = (): void => setShouldShowAbout(true);
+    const onShowFullscreenViz = (): void => setShouldShowFullscreenViz(true);
+    const onShowSettings = (): void => setShouldShowSettings(true);
+
+    const onWindowReady = (_: IpcRendererEvent, { displays: displayData }: { displays: Display[] }): void => {
       setDisplays(() => displayData.map(({ label, bounds: { height, width } }) => ({ label, height, width })));
+    };
 
-      const moveWindow = (): void => {
-        ipcRenderer.send(IpcMessage.WindowMoving, { mouseX, mouseY });
-        animationId = requestAnimationFrame(moveWindow);
-      };
-
-      const onMouseUp = ({ button }: { button: number }): void => {
-        if (button !== LEFT_MOUSE_BUTTON) {
-          return;
-        }
-
-        ipcRenderer.send(IpcMessage.WindowMoved);
-        document.removeEventListener('mouseup', onMouseUp);
-        cancelAnimationFrame(animationId);
-      };
-
-      const onMouseDown = (event: MouseEvent): void => {
-        const { button, clientX, clientY, target } = event;
-        const targetElement = target as unknown as Element;
-
-        const isDraggable = targetElement.classList?.contains('draggable');
-        if (button !== LEFT_MOUSE_BUTTON || !isDraggable) {
-          return;
-        }
-
-        cancelAnimationFrame(animationId);
-        mouseX = clientX;
-        mouseY = clientY;
-        document.addEventListener('mouseup', onMouseUp);
-
-        requestAnimationFrame(moveWindow);
-      };
-
-      document.getElementById('app-body').addEventListener('mousedown', onMouseDown);
-    });
-
-    ipcRenderer.on(IpcMessage.WindowMoved, (_: IpcRendererEvent, data: { x: number; y: number }) => {
+    const onWindowMoved = (_: IpcRendererEvent, data: { x: number; y: number }): void => {
       dispatch({
         type: SettingsActionType.SetWindowPos,
         payload: data,
       });
-    });
+    };
 
-    ipcRenderer.on(IpcMessage.WindowResized, (_: IpcRendererEvent, size: number) => {
+    const onWindowResized = (_: IpcRendererEvent, size: number): void => {
       dispatch({
         type: SettingsActionType.SetSize,
         payload: size,
       });
-    });
+    };
 
-    ipcRenderer.on(IpcMessage.SideChanged, (_: IpcRendererEvent, { isOnLeft }: { isOnLeft: boolean }) => {
+    const onSideChanged = (_: IpcRendererEvent, { isOnLeft }: { isOnLeft: boolean }): void => {
       dispatch({
         type: SettingsActionType.SetIsOnLeft,
         payload: isOnLeft,
       });
-    });
+    };
+
+    ipcRenderer.on(IpcMessage.ShowAbout, onShowAbout);
+    ipcRenderer.on(IpcMessage.ShowFullscreenVizualizer, onShowFullscreenViz);
+    ipcRenderer.on(IpcMessage.ShowSettings, onShowSettings);
+    ipcRenderer.on(IpcMessage.WindowReady, onWindowReady);
+    ipcRenderer.on(IpcMessage.WindowMoved, onWindowMoved);
+    ipcRenderer.on(IpcMessage.WindowResized, onWindowResized);
+    ipcRenderer.on(IpcMessage.SideChanged, onSideChanged);
+    document.getElementById('app-body')?.addEventListener('mousedown', onMouseDown);
+
+    // ask main for displays — covers recreated windows and crash-recovery
+    // remounts; main also pushes once on ready-to-show
+    ipcRenderer.send(IpcMessage.WindowReady);
+
+    // without this cleanup every error-boundary remount stacks another listener set
+    return () => {
+      ipcRenderer.removeListener(IpcMessage.ShowAbout, onShowAbout);
+      ipcRenderer.removeListener(IpcMessage.ShowFullscreenVizualizer, onShowFullscreenViz);
+      ipcRenderer.removeListener(IpcMessage.ShowSettings, onShowSettings);
+      ipcRenderer.removeListener(IpcMessage.WindowReady, onWindowReady);
+      ipcRenderer.removeListener(IpcMessage.WindowMoved, onWindowMoved);
+      ipcRenderer.removeListener(IpcMessage.WindowResized, onWindowResized);
+      ipcRenderer.removeListener(IpcMessage.SideChanged, onSideChanged);
+      document.getElementById('app-body')?.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener('mousemove', onMouseMove);
+      isDragging = false;
+      cancelAnimationFrame(animationId);
+    };
   }, [dispatch]);
 
   useEffect(() => {
@@ -218,14 +289,18 @@ export const App: FunctionComponent = () => {
   }, []);
 
   const handleSettingsSave = useCallback(
-    (data?: Settings) => {
+    (data?: Settings, isReset = false) => {
+      // the form snapshots x/y when settings opens; saving must not teleport the
+      // window back there — keep the live position. Reset passes isReset
+      // explicitly (x/y sniffing misfires on fresh installs where x/y are -1).
+      const merged = isReset ? data : { ...data, x: state.x, y: state.y };
       dispatch({
         type: SettingsActionType.UpdateSettings,
-        payload: data,
+        payload: merged,
       });
-      ipcRenderer.send(IpcMessage.SettingsChanged, data);
+      ipcRenderer.send(IpcMessage.SettingsChanged, merged);
     },
-    [dispatch]
+    [dispatch, state.x, state.y]
   );
 
   const handleVisualizationChange = useCallback(() => {

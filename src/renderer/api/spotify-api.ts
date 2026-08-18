@@ -101,7 +101,7 @@ class SpotifyApi {
 
   async play(pause: boolean): Promise<void> {
     if (pause) {
-      this.fetch('/me/player/pause', {
+      await this.fetch('/me/player/pause', {
         method: 'PUT',
       });
     } else {
@@ -118,16 +118,16 @@ class SpotifyApi {
   }
 
   // Spotify's February 2026 migration replaced /me/tracks with /me/library (URIs instead of ids)
-  async like(isLiked: boolean, trackId: string): Promise<void> {
+  async like(isLiked: boolean, itemId: string, itemType: 'track' | 'episode' = 'track'): Promise<void> {
     const verb = isLiked ? 'DELETE' : 'PUT';
-    await this.fetch(`/me/library?uris=${encodeURIComponent(`spotify:track:${trackId}`)}`, {
+    await this.fetch(`/me/library?uris=${encodeURIComponent(`spotify:${itemType}:${itemId}`)}`, {
       method: verb,
     });
   }
 
-  async isTrackLiked(trackId: string): Promise<boolean> {
+  async isTrackLiked(itemId: string, itemType: 'track' | 'episode' = 'track'): Promise<boolean> {
     const likedResponse: Array<boolean> = await this.fetch(
-      `/me/library/contains?uris=${encodeURIComponent(`spotify:track:${trackId}`)}`,
+      `/me/library/contains?uris=${encodeURIComponent(`spotify:${itemType}:${itemId}`)}`,
       {
         method: 'GET',
       }
@@ -179,6 +179,9 @@ class SpotifyApi {
         try {
           return text ? JSON.parse(text) : null;
         } catch {
+          // surface contract violations instead of silently reading them as "nothing playing"
+          // eslint-disable-next-line no-console
+          console.error(`Unparseable 200 response from ${input}: ${text.slice(0, 120)}`);
           return null;
         }
       }
@@ -187,7 +190,8 @@ class SpotifyApi {
       }
       case 401: {
         if (this.refreshToken) {
-          await refreshAccessToken(this.refreshToken);
+          // force: the current access token is known dead, the reuse guard must not re-emit it
+          await refreshAccessToken(this.refreshToken, true);
         }
         break;
       }

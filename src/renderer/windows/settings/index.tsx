@@ -1,6 +1,6 @@
 import styled from '@emotion/styled';
 import { Tabs } from '@mantine/core';
-import React, { FunctionComponent, useCallback } from 'react';
+import React, { FunctionComponent, useCallback, useEffect, useRef, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 
 import { DEFAULT_SETTINGS, Settings } from '../../../models/settings';
@@ -42,8 +42,14 @@ const ButtonsGroup = styled.div`
 const SaveCancelButtonsWrapper = styled.div`
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   width: 100%;
   gap: 0.25rem;
+`;
+
+const SavedIndicator = styled.span`
+  color: rgb(214, 146, 255);
+  margin-right: 0.25rem;
 `;
 
 const TabsWrapper = styled.div`
@@ -65,7 +71,7 @@ interface Props {
   initialValues: Settings;
   displays: DisplayData[];
   onClose: () => void;
-  onSave: (data: Settings) => void;
+  onSave: (data: Settings, isReset?: boolean) => void;
   onLogout: () => void;
 }
 
@@ -75,25 +81,42 @@ export const SettingsWindow: FunctionComponent<Props> = ({ initialValues, displa
   });
   const { handleSubmit, reset } = methods;
 
+  const [isSaved, setIsSaved] = useState(false);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (savedTimer.current) {
+        clearTimeout(savedTimer.current);
+      }
+    };
+  }, []);
+
   const onSubmit = useCallback(
     (data: Settings) => {
       onSave(data);
-      onClose();
+      // the window stays open on save, so show that something happened
+      setIsSaved(true);
+      if (savedTimer.current) {
+        clearTimeout(savedTimer.current);
+      }
+      savedTimer.current = setTimeout(() => setIsSaved(false), 1500);
     },
-    [onClose, onSave]
+    [onSave]
   );
 
   const handleCancel = useCallback(() => onClose(), [onClose]);
 
   const handleReset = useCallback(() => {
     // eslint-disable-next-line no-restricted-globals, no-alert
-    if (confirm('Are you sure you want to reset all settings?')) {
-      const { accessToken, refreshToken } = initialValues;
+    if (confirm('Are you sure you want to reset all settings? This also disconnects your Spotify account.')) {
       reset(DEFAULT_SETTINGS);
-      onSave({ ...DEFAULT_SETTINGS, accessToken, refreshToken });
+      // full factory reset: clear the session (tokens, profile, api client) too
+      onLogout();
+      onSave(DEFAULT_SETTINGS, true);
       onClose();
     }
-  }, [initialValues, onClose, onSave, reset]);
+  }, [onClose, onLogout, onSave, reset]);
 
   return (
     <SettingsWindowWrapper>
@@ -136,11 +159,12 @@ export const SettingsWindow: FunctionComponent<Props> = ({ initialValues, displa
             </StyledTabs>
           </TabsWrapper>
 
-          <AccountSettings onLogout={onLogout} />
+          <AccountSettings onLogout={onLogout} isLoggedIn={!!initialValues.accessToken} />
 
           <ButtonsGroup>
             <Input type="button" value="Reset" onClick={handleReset} />
             <SaveCancelButtonsWrapper>
+              {isSaved && <SavedIndicator>Saved ✓</SavedIndicator>}
               <Input type="submit" value="Save" />
               <Input type="button" value="Cancel" onClick={handleCancel} />
             </SaveCancelButtonsWrapper>

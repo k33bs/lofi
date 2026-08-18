@@ -37,6 +37,7 @@ export interface Settings {
   showFreemiumWarning: boolean;
   cornerRadius: number;
   trackInfoRefreshTimeInSeconds: number;
+  spotifyClientId: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -70,4 +71,5 @@ export const DEFAULT_SETTINGS: Settings = {
   showFreemiumWarning: true,
   cornerRadius: 0,
   trackInfoRefreshTimeInSeconds: 1,
+  spotifyClientId: '',
 };

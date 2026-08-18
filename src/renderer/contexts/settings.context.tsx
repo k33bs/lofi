@@ -1,5 +1,14 @@
 import Store from 'electron-store';
-import React, { createContext, Dispatch, FunctionComponent, useContext, useEffect, useMemo, useReducer } from 'react';
+import React, {
+  createContext,
+  Dispatch,
+  FunctionComponent,
+  PropsWithChildren,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+} from 'react';
 
 import { DEFAULT_SETTINGS, Settings } from '../../models/settings';
 import { SettingsAction, useSettingsReducer } from '../reducers/settings.reducer';
@@ -15,7 +24,7 @@ interface SettingsStorage {
 
 const Context = createContext<SettingsContext>({ state: null, dispatch: null });
 
-export const SettingsProvider: FunctionComponent = ({ children }) => {
+export const SettingsProvider: FunctionComponent<PropsWithChildren> = ({ children }) => {
   const store = useMemo(
     () =>
       new Store<SettingsStorage>({
@@ -27,7 +36,12 @@ export const SettingsProvider: FunctionComponent = ({ children }) => {
   const [state, dispatch] = useReducer(useSettingsReducer, { ...DEFAULT_SETTINGS, ...store.get('settings') });
 
   useEffect(() => {
-    store.set('settings', state || DEFAULT_SETTINGS);
+    try {
+      store.set('settings', state || DEFAULT_SETTINGS);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('settings persistence failed:', error);
+    }
   }, [state, store]);
 
   const ctx: SettingsContext = useMemo(() => ({ state, dispatch }), [state, dispatch]);

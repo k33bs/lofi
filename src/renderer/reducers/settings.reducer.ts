@@ -9,6 +9,7 @@ export enum SettingsActionType {
   SetSize = 'setSize',
   SetTokens = 'setTokens',
   ResetTokens = 'resetTokens',
+  SetClientId = 'setClientId',
   UpdateSettings = 'updateSettings',
 }
 
@@ -39,6 +40,10 @@ export type SettingsAction =
     }
   | {
       type: SettingsActionType.ResetTokens;
+    }
+  | {
+      type: SettingsActionType.SetClientId;
+      payload: string;
     }
   | {
       type: SettingsActionType.UpdateSettings;
@@ -96,6 +101,13 @@ export const useSettingsReducer = (state: Settings, action: SettingsAction): Set
         ...state,
         accessToken: '',
         refreshToken: '',
+      };
+    }
+
+    case SettingsActionType.SetClientId: {
+      return {
+        ...state,
+        spotifyClientId: action.payload.trim(),
       };
     }
 

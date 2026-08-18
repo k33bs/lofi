@@ -17,8 +17,15 @@ let onTokenRetrieved: (data: AuthData) => void = null;
 
 const AUTH_URL = 'https://accounts.spotify.com/authorize';
 const AUTH_TOKEN_URL = 'https://accounts.spotify.com/api/token';
-const AUTH_CLIENT_ID = 'cc92fcea92e9472ca1040d6a4abcb773';
 const AUTH_PORT = 41419;
+
+// no client id ships with the app: Spotify's development-mode rules mean every
+// user registers their own app (free) and pastes its client id into lofi
+let authClientId = '';
+
+export const setAuthClientId = (clientId: string): void => {
+  authClientId = clientId || '';
+};
 const AUTH_SCOPES = [
   'user-read-playback-state',
   'user-modify-playback-state',
@@ -49,7 +56,7 @@ export const getAuthUrl = (): string => {
   const scopes = AUTH_SCOPES.join('%20');
 
   const authUrl =
-    `${AUTH_URL}?response_type=code&client_id=${AUTH_CLIENT_ID}&redirect_uri=http://127.0.0.1:${AUTH_PORT}&` +
+    `${AUTH_URL}?response_type=code&client_id=${authClientId}&redirect_uri=http://127.0.0.1:${AUTH_PORT}&` +
     `scope=${scopes}&state=${codeState}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
   return authUrl;
@@ -83,10 +90,33 @@ const setRefreshTokenInterval = (data: AuthData): void => {
   }
 };
 
-export const refreshAccessToken = async (refreshToken: string): Promise<void> => {
+let lastRefreshAt = 0;
+let lastAuthData: AuthData = null;
+const REFRESH_REUSE_GUARD_MS = 5 * 60 * 1000;
+
+// on logout the cached tokens must go, or a refresh call within the guard
+// window would resurrect the logged-out session
+export const clearAuthCache = (): void => {
+  lastRefreshAt = 0;
+  lastAuthData = null;
+};
+
+export const refreshAccessToken = async (refreshToken: string, force = false): Promise<void> => {
+  // Spotify rotates refresh tokens and revokes the grant on reuse; a remount
+  // asking again right after a successful refresh must not burn the new token.
+  // Re-emit the cached tokens so a freshly mounted tree still gets its profile.
+  // `force` bypasses this for 401 recovery, where the cached token is known dead.
+  if (!force && Date.now() - lastRefreshAt < REFRESH_REUSE_GUARD_MS) {
+    console.log('Skipping token refresh, last refresh was moments ago.');
+    if (onTokenRetrieved && lastAuthData) {
+      onTokenRetrieved(lastAuthData);
+    }
+    return;
+  }
+
   console.log('Refreshing access token...');
 
-  const body = `client_id=${AUTH_CLIENT_ID}&grant_type=refresh_token&refresh_token=${refreshToken}`;
+  const body = `client_id=${authClientId}&grant_type=refresh_token&refresh_token=${refreshToken}`;
 
   const res = await fetch(AUTH_TOKEN_URL, {
     method: 'POST',
@@ -102,12 +132,15 @@ export const refreshAccessToken = async (refreshToken: string): Promise<void> =>
     const errorText = data.error_description;
     console.error(`status ${res.status}: Failed to retrieve access token\n  ${data.error}: ${errorText}`);
     data = null;
+    clearAuthCache();
   } else if (!scopesMatch(data.scope)) {
     console.warn(
       `Authorization scopes mismatch\n    Expected: ${AUTH_SCOPES.join(' ')}\n    Token has: '${data.scope}`
     );
     data = null;
   } else {
+    lastRefreshAt = Date.now();
+    lastAuthData = data;
     console.log('Access token refreshed.');
   }
 
@@ -119,7 +152,7 @@ const retrieveAccessToken = async (verifier: string, code: string): Promise<Auth
   console.log('Retrieving access token...');
 
   const body =
-    `client_id=${AUTH_CLIENT_ID}&grant_type=authorization_code&` +
+    `client_id=${authClientId}&grant_type=authorization_code&` +
     `code=${code}&redirect_uri=http://127.0.0.1:${AUTH_PORT}&code_verifier=${verifier}`;
 
   const res = await fetch(AUTH_TOKEN_URL, {
@@ -176,6 +209,8 @@ const handleServerResponse = async (request: http.IncomingMessage, response: htt
     const code = urlObj.searchParams.get('code');
     if (code) {
       const data = await retrieveAccessToken(codeVerifier, code);
+      lastRefreshAt = Date.now();
+      lastAuthData = data;
       setRefreshTokenInterval(data);
       response.end('Lofi authorization successful, you may now close this window.');
       onTokenRetrieved(data);

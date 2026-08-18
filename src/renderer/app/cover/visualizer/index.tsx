@@ -26,7 +26,7 @@ export const Visualizer: FunctionComponent<Props> = ({
   timeFactor,
   size,
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!visualizationId || visualizationId < 0 || visualizationId >= visualizations.length) {

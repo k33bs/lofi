@@ -5,6 +5,7 @@ import styled, { css } from 'styled-components';
 import { DEFAULT_SETTINGS } from '../../../../models/settings';
 import { AccountType, SpotifyApiInstance } from '../../../api/spotify-api';
 import { useCurrentlyPlaying } from '../../../contexts/currently-playing.context';
+import { CurrentlyPlayingType } from '../../../reducers/currently-playing.reducer';
 
 const ControlsContainer = styled.div`
   overflow: hidden;
@@ -30,7 +31,7 @@ const ControlsCluster = styled.div`
   margin: auto;
 `;
 
-const ControlIcon = styled.li<{ fontSize: string }>`
+const ControlIcon = styled.li<{ $fontSize: string }>`
   vertical-align: middle;
   color: #6affb3bf;
   background-color: #00000080;
@@ -39,12 +40,12 @@ const ControlIcon = styled.li<{ fontSize: string }>`
   border: 1px solid #4c4c4c54;
   margin: 0.25em;
   transition: transform 0.2s;
-  ${({ fontSize }) =>
+  ${({ $fontSize }) =>
     css`
-      font-size: ${fontSize};
-      height: ${fontSize};
-      width: ${fontSize};
-      line-height: ${fontSize};
+      font-size: ${$fontSize};
+      height: ${$fontSize};
+      width: ${$fontSize};
+      line-height: ${$fontSize};
     `};
 
   &:hover {
@@ -69,6 +70,10 @@ const LikeIcon = styled(ControlIcon)`
 
 const moveSongProgress = async (isForward: boolean, distInSec: number): Promise<void> => {
   const currentlyPlaying = await SpotifyApiInstance.getCurrentlyPlaying();
+  // null means no active device — nothing to seek
+  if (!currentlyPlaying) {
+    return;
+  }
   const currentProgress = Number(currentlyPlaying.progress_ms);
   const distInMs = distInSec * 1000;
   const newProgress = isForward ? currentProgress + distInMs : currentProgress - distInMs;
@@ -93,7 +98,7 @@ export const Controls: FunctionComponent<Props> = ({
 
   const handlePausePlay = useCallback(async (): Promise<void> => {
     try {
-      SpotifyApiInstance.play(state.isPlaying);
+      await SpotifyApiInstance.play(state.isPlaying);
       onPlaybackChanged();
       console.log(`Playback changed: ${state.isPlaying ? 'playing' : 'pause'}.`);
     } catch (error) {
@@ -106,10 +111,11 @@ export const Controls: FunctionComponent<Props> = ({
     async (isForward: boolean, event: React.MouseEvent): Promise<void> => {
       try {
         const isMove = event.ctrlKey || event.metaKey;
+        // await so rejections land in this try/catch and reach the error UI
         if (isMove) {
-          moveSongProgress(isForward, skipSongDelay);
+          await moveSongProgress(isForward, skipSongDelay);
         } else {
-          SpotifyApiInstance.skip(isForward);
+          await SpotifyApiInstance.skip(isForward);
         }
         onPlaybackChanged();
         console.log(`Playback changed: skipped ${isMove ? `${skipSongDelay} seconds` : 'song'}.`);
@@ -123,14 +129,18 @@ export const Controls: FunctionComponent<Props> = ({
 
   const handleLike = useCallback(async (): Promise<void> => {
     try {
-      await SpotifyApiInstance.like(!!state.isLiked, state.id);
+      if (state.type !== CurrentlyPlayingType.Track && state.type !== CurrentlyPlayingType.Episode) {
+        return;
+      }
+      const itemType = state.type === CurrentlyPlayingType.Episode ? 'episode' : 'track';
+      await SpotifyApiInstance.like(!!state.isLiked, state.id, itemType);
       onTrackLiked();
       console.log(`Song ${state.isLiked ? 'unliked 💔' : 'liked 💜'}.`);
     } catch (error) {
       onError((error as Error).message);
       console.error(error);
     }
-  }, [onError, onTrackLiked, state.id, state.isLiked]);
+  }, [onError, onTrackLiked, state.id, state.isLiked, state.type]);
 
   const accountType = useMemo(() => state.userProfile?.accountType, [state.userProfile?.accountType]);
 
@@ -141,19 +151,19 @@ export const Controls: FunctionComponent<Props> = ({
           {accountType === AccountType.Premium ? (
             <p className="draggable">
               <button type="button" onClick={(event) => handleSkip(false, event)} className="skip unstyled-button">
-                <ControlIcon fontSize="10px" className="fa fa-step-backward" />
+                <ControlIcon $fontSize="10px" className="fa fa-step-backward" />
               </button>
               <button type="button" onClick={handlePausePlay} className="pause-play unstyled-button">
-                <ControlIcon fontSize="18px" className={`fa ${state.isPlaying ? 'fa-pause' : 'fa-play'}`} />
+                <ControlIcon $fontSize="18px" className={`fa ${state.isPlaying ? 'fa-pause' : 'fa-play'}`} />
               </button>
               <button type="button" onClick={(event) => handleSkip(true, event)} className="skip unstyled-button">
-                <ControlIcon fontSize="10px" className="fa fa-step-forward" />
+                <ControlIcon $fontSize="10px" className="fa fa-step-forward" />
               </button>
             </p>
           ) : null}
           <p className="draggable">
             <button type="button" onClick={handleLike} className="unstyled-button">
-              <LikeIcon fontSize="8px" className={`${state.isLiked ? 'fa' : 'far'} fa-heart`} />
+              <LikeIcon $fontSize="8px" className={`${state.isLiked ? 'fa' : 'far'} fa-heart`} />
             </button>
           </p>
         </ControlsCluster>

@@ -50,9 +50,10 @@ const NoAvatar = styled.li`
 
 interface Props {
   onLogout: () => void;
+  isLoggedIn: boolean;
 }
 
-export const AccountSettings: FunctionComponent<Props> = ({ onLogout }) => {
+export const AccountSettings: FunctionComponent<Props> = ({ onLogout, isLoggedIn }) => {
   const {
     state: { userProfile },
     dispatch,
@@ -73,6 +74,26 @@ export const AccountSettings: FunctionComponent<Props> = ({ onLogout }) => {
 
   return (
     <InfoRow>
+      {!userProfile && isLoggedIn && (
+        // logged in but the profile fetch failed (rate limit, offline) —
+        // the logout control must stay reachable regardless
+        <>
+          <NoAvatar className="fa-solid fa-user-ninja" />
+          <InfoWrapper>
+            <UserInformation>
+              <UserName>Signed in — profile unavailable right now</UserName>
+              <LogoutButton
+                type="button"
+                className="unstyled-button"
+                onMouseEnter={onMouseEnter}
+                onMouseLeave={onMouseLeave}
+                onClick={handleLogoutClick}>
+                {isHovering ? <i className="fa-solid fa-link-slash" /> : <i className="fa-solid fa-link" />}
+              </LogoutButton>
+            </UserInformation>
+          </InfoWrapper>
+        </>
+      )}
       {userProfile && (
         <>
           {userProfile.avatar ? (
