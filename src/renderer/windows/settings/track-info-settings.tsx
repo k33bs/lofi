@@ -19,7 +19,7 @@ export const TrackInfoSettings: FunctionComponent = () => {
         <Row>
           <Label>
             Font family
-            <StyledTextInput size="xs" {...register('font')} />
+            <StyledTextInput size="sm" {...register('font')} />
           </Label>
         </Row>
         <Row>
@@ -66,7 +66,7 @@ export const TrackInfoSettings: FunctionComponent = () => {
           <StyledCheckbox
             color={INPUT_COLOR}
             label="Display free account warning"
-            size="xs"
+            size="sm"
             {...register('showFreemiumWarning')}
           />
         </Row>

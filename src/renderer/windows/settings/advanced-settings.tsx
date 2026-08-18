@@ -18,12 +18,12 @@ export const AdvancedSettings: FunctionComponent = () => {
           <StyledCheckbox
             color={INPUT_COLOR}
             label="Use hardware acceleration (requires restart)"
-            size="xs"
+            size="sm"
             {...register('isUsingHardwareAcceleration')}
           />
         </Row>
         <Row>
-          <StyledCheckbox color={INPUT_COLOR} label="Enable dev tools" size="xs" {...register('isDebug')} />
+          <StyledCheckbox color={INPUT_COLOR} label="Enable dev tools" size="sm" {...register('isDebug')} />
         </Row>
         <Row>
           <Label>

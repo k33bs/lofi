@@ -27,6 +27,9 @@ export enum SettingsTab {
 const SettingsWindowWrapper = styled(StyledWindow)`
   display: flex;
   flex-direction: column;
+  /* the shared window base uses 75% font size, too small for a settings form */
+  font-size: 13px;
+  line-height: 1.45;
 `;
 
 const Form = styled.form`

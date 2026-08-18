@@ -14,6 +14,11 @@ export const StyledSelect = styled(Select)``;
 
 export const StyledTextInput = styled(TextInput)`
   padding-left: 0.25rem;
+  width: 100%;
+
+  .mantine-TextInput-label {
+    color: white;
+  }
 `;
 
 export const StyledTabs = styled(Tabs)`

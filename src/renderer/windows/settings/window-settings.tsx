@@ -28,13 +28,13 @@ export const WindowSettings: FunctionComponent = () => {
       <FieldSet>
         <Legend>Window</Legend>
         <Row>
-          <StyledCheckbox color={INPUT_COLOR} label="Always on top" size="xs" {...register('isAlwaysOnTop')} />
+          <StyledCheckbox color={INPUT_COLOR} label="Always on top" size="sm" {...register('isAlwaysOnTop')} />
         </Row>
         <Row>
           <StyledCheckbox
             color={INPUT_COLOR}
             label="Display in taskbar"
-            size="xs"
+            size="sm"
             {...register('isVisibleInTaskbar')}
           />
         </Row>
@@ -42,7 +42,7 @@ export const WindowSettings: FunctionComponent = () => {
           <StyledCheckbox
             color={INPUT_COLOR}
             label="Always show song information"
-            size="xs"
+            size="sm"
             {...register('isAlwaysShowTrackInfo')}
           />
         </Row>
@@ -64,7 +64,7 @@ export const WindowSettings: FunctionComponent = () => {
           <StyledCheckbox
             color={INPUT_COLOR}
             label="Always show song progress"
-            size="xs"
+            size="sm"
             {...register('isAlwaysShowSongProgress')}
           />
         </Row>

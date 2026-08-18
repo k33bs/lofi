@@ -29,10 +29,12 @@ export const getCommonWindowOptions = (): BrowserWindowConstructorOptions => ({
 
 export const getSettingsWindowOptions = (): BrowserWindowConstructorOptions => ({
   ...getCommonWindowOptions(),
-  height: 420,
-  minHeight: 420,
-  width: 420,
-  minWidth: 420,
+  // six 80px tabs plus padding must fit on one row, and the Spotify tab's
+  // note below the client id field needs the extra height
+  height: 515,
+  minHeight: 515,
+  width: 520,
+  minWidth: 520,
   title: WindowTitle.Settings,
 });
 

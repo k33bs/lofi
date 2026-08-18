@@ -12,23 +12,24 @@ export const FormGroup = styled.div`
 
 export const FieldSet = styled.fieldset`
   border: none;
-  padding: 0.25rem;
+  padding: 0.5rem 0.75rem;
   margin-bottom: 0.25rem;
   height: 100%;
 `;
 
 export const Legend = styled.legend`
-  font-size: 130%;
+  font-size: 145%;
   color: rgb(214, 146, 255);
-  font-weight: 300;
+  font-weight: 700;
   font-variant: all-petite-caps;
   text-shadow: #00000085 0 0 0.25rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
 `;
 
 export const Row = styled.div`
   display: flex;
-  margin-bottom: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
 `;
 
 export const BaseSettingsInputStyle = css`
@@ -44,6 +45,12 @@ export const Label = styled.label`
 
 export const Input = styled.input`
   ${BaseSettingsInputStyle}
+
+  &[type='button'],
+  &[type='submit'] {
+    padding: 0.3rem 0.9rem;
+    cursor: pointer;
+  }
 `;
 
 export const ColorInput = styled(Input).attrs({
@@ -55,8 +62,9 @@ export const ColorInput = styled(Input).attrs({
 `;
 
 export const RangeValue = styled.div`
-  width: 1rem;
-  margin-left: 0.25rem;
+  min-width: 1.5rem;
+  margin-left: 0.5rem;
+  text-align: right;
 `;
 
 export const Select = styled.select`
@@ -67,7 +75,8 @@ export const Select = styled.select`
 export const Slider = styled(Input).attrs({
   type: 'range',
 })`
-  margin-left: 0.25rem;
+  margin-left: 0.75rem;
+  flex: 1;
   width: 100%;
   background: rgb(218, 119, 242);
   -webkit-appearance: none;
