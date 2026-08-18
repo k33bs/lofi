@@ -1,4 +1,9 @@
 import { volume } from '../../build/Release/volume.node';
+import { getSystemVolume } from '../renderer/api/system-audio';
+
+// loopback capture (macOS) wins when active, otherwise the native meter
+// (Windows) or its 0 fallback (Linux, macOS without permission)
+const readVolume = (): number => getSystemVolume() ?? volume();
 
 export interface VisualizationProgram {
   fragmentShaderSource: string;
@@ -73,7 +78,7 @@ export const visualize = (
     if (peaks.length >= 10) {
       peaks.shift();
     }
-    peaks.push(volume());
+    peaks.push(readVolume());
 
     // average over the last 5 peaks (~100ms)
     // should probably be done in the shader

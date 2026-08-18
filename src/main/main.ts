@@ -7,6 +7,7 @@ import {
   app,
   BrowserWindow,
   BrowserWindowConstructorOptions,
+  desktopCapturer,
   HandlerDetails,
   ipcMain,
   IpcMainEvent,
@@ -14,6 +15,7 @@ import {
   nativeImage,
   Rectangle,
   screen,
+  session,
   shell,
   Tray,
 } from 'electron';
@@ -58,6 +60,13 @@ if (process.env.NODE_ENV === 'development') {
   app.commandLine.appendSwitch('enable-logging', '1');
 }
 
+// macOS has no usable native audio meter (the old capture daemon was never
+// shipped); Chromium can tap system audio for the visualizations instead.
+// Windows keeps the native volume module, Linux stays as before.
+if (process.platform === 'darwin') {
+  app.commandLine.appendSwitch('enable-features', 'MacLoopbackAudioForScreenShare,MacCatapSystemAudioLoopbackCapture');
+}
+
 // Electron no longer infers the app name from the bundle's package.json in dev,
 // so userData would fall back to the generic "Electron" directory and settings
 // (including auth tokens) would land in the wrong place. Must run before any
@@ -87,7 +96,13 @@ const DRAG_IDLE_RESET_MS = 500;
 const VISIBLE_MARGIN = 40;
 
 let tray: Tray = null;
-Menu.setApplicationMenu(null);
+// no visible menu bar, but without an Edit menu macOS refuses
+// copy/paste/select-all keyboard shortcuts in every window
+Menu.setApplicationMenu(
+  Menu.buildFromTemplate(
+    process.platform === 'darwin' ? [{ role: 'appMenu' }, { role: 'editMenu' }] : [{ role: 'editMenu' }]
+  )
+);
 
 const isSingleInstance: boolean = app.requestSingleInstanceLock();
 if (!isSingleInstance) {
@@ -432,6 +447,24 @@ app.on('ready', () => {
   }
 
   registerIpcHandlers();
+
+  // serve the renderer's getDisplayMedia with system loopback audio (the video
+  // source is mandatory in the API but the renderer discards it immediately)
+  if (process.platform === 'darwin') {
+    session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+      desktopCapturer
+        .getSources({ types: ['screen'] })
+        .then((sources) => {
+          callback({ video: sources[0], audio: 'loopback' });
+        })
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error('Loopback audio source unavailable:', err);
+          callback(null);
+        });
+    });
+  }
+
   createMainWindow();
 
   tray = new Tray(icon);

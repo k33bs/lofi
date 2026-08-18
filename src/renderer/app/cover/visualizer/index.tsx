@@ -2,6 +2,7 @@ import React, { FunctionComponent, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
 import { visualizations } from '../../../../visualizations';
+import { initSystemAudio } from '../../../api/system-audio';
 import { Size } from '../../../models';
 
 const VisualizerWrapper = styled.canvas`
@@ -29,6 +30,8 @@ export const Visualizer: FunctionComponent<Props> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    // no-op outside macOS; retried on later toggles if the user denies
+    initSystemAudio();
     if (!visualizationId || visualizationId < 0 || visualizationId >= visualizations.length) {
       visualizations[0].visualize({ canvas: canvasRef.current, peakFactor, timeFactor });
     } else {

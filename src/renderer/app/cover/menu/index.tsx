@@ -3,7 +3,7 @@ import { noop } from 'lodash';
 import React, { FunctionComponent, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 
-import { IpcMessage, WINDOWS } from '../../../../constants';
+import { IpcMessage, MACOS, WINDOWS } from '../../../../constants';
 import { VisualizationType } from '../../../../models/settings';
 import { CloseButton } from '../../../components';
 
@@ -151,7 +151,9 @@ const Menu: FunctionComponent<Props> = ({
         </li>
       </MenuList>
       <MenuList className="menu bottom draggable">
-        {!isWelcome && WINDOWS && (
+        {/* audio-reactive visualizations exist on Windows (native meter) and
+            macOS (loopback capture); Linux still has no audio source */}
+        {!isWelcome && (WINDOWS || MACOS) && (
           <li className="draggable">
             {visualizationType !== VisualizationType.None && (
               <button type="button" onClick={() => onVisualizationCycle(true)} className="unstyled-button vis">

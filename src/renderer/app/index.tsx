@@ -14,6 +14,7 @@ import {
 import { DEFAULT_SETTINGS, Settings, VisualizationType } from '../../models/settings';
 import { visualizations } from '../../visualizations';
 import { AccountType, SpotifyApiInstance } from '../api/spotify-api';
+import { initSystemAudio } from '../api/system-audio';
 import { WindowPortal } from '../components';
 import { useCurrentlyPlaying } from '../contexts/currently-playing.context';
 import { useSettings } from '../contexts/settings.context';
@@ -305,6 +306,9 @@ export const App: FunctionComponent = () => {
   );
 
   const handleVisualizationChange = useCallback(() => {
+    // called from a click, which satisfies the user-activation requirement
+    // of the loopback capture permission flow
+    initSystemAudio();
     switch (visualizationType) {
       case VisualizationType.None: {
         dispatch({
