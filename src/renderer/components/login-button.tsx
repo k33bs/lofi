@@ -1,10 +1,10 @@
 import React, { FunctionComponent, useMemo } from 'react';
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 
-import { getAuthUrl, setAuthClientId, startAuthServer } from '../../main/auth';
+import { DISTRIBUTION_CLIENT_ID, getAuthUrl, setAuthClientId, startAuthServer } from '../../main/auth';
 import { useSettings } from '../contexts/settings.context';
 
-const Link = styled.a`
+const loginControlStyles = css`
   margin: auto;
   background-color: black;
   padding: 1rem;
@@ -30,18 +30,44 @@ const Link = styled.a`
   }
 `;
 
+const Link = styled.a`
+  ${loginControlStyles}
+`;
+
+const SetupButton = styled.button`
+  ${loginControlStyles}
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+`;
+
 const SpotifyLogo = styled.i`
   margin-right: 0.5rem;
 `;
 
-export const LoginButton: FunctionComponent = () => {
+interface Props {
+  onSetupNeeded: () => void;
+}
+
+export const LoginButton: FunctionComponent<Props> = ({ onSetupNeeded }) => {
   const { state } = useSettings();
-  const clientId = state?.spotifyClientId ?? '';
+  const clientId = state?.spotifyClientId || DISTRIBUTION_CLIENT_ID;
   // the auth url embeds the client id, so it must be set before building the url
   const authUrl = useMemo(() => {
     setAuthClientId(clientId);
     return getAuthUrl();
   }, [clientId]);
+
+  // without a client id the login cannot work; send the user to the setup tab
+  if (!clientId) {
+    return (
+      <SetupButton type="button" className="login-btn" onClick={onSetupNeeded}>
+        <SpotifyLogo className="fab fa-spotify" />
+        <span>Log in</span>
+      </SetupButton>
+    );
+  }
+
   return (
     <Link className="login-btn" target="auth" href={authUrl} onClick={startAuthServer}>
       <SpotifyLogo className="fab fa-spotify" />

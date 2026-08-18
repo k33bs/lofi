@@ -19,12 +19,16 @@ const AUTH_URL = 'https://accounts.spotify.com/authorize';
 const AUTH_TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const AUTH_PORT = 41419;
 
-// no client id ships with the app: Spotify's development-mode rules mean every
-// user registers their own app (free) and pastes its client id into lofi
-let authClientId = '';
+// No client id ships with the app: Spotify's development-mode rules mean every
+// user registers their own app (free) and pastes its client id into lofi.
+// If you obtain a distribution-grade client id (extended quota mode), hard code
+// it below and the app works out of the box; the settings value still overrides it.
+export const DISTRIBUTION_CLIENT_ID = '';
+
+let authClientId = DISTRIBUTION_CLIENT_ID;
 
 export const setAuthClientId = (clientId: string): void => {
-  authClientId = clientId || '';
+  authClientId = clientId || DISTRIBUTION_CLIENT_ID;
 };
 const AUTH_SCOPES = [
   'user-read-playback-state',

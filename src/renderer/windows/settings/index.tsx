@@ -10,13 +10,15 @@ import { WindowHeader } from '../window-header';
 import { AccountSettings } from './account-settings';
 import { AdvancedSettings } from './advanced-settings';
 import { AudioSettings } from './audio-settings';
+import { SpotifySettings } from './spotify-settings';
 import { TrackInfoSettings } from './track-info-settings';
 import { VisualizationSettings } from './visualization-settings';
 import { WindowSettings } from './window-settings';
 
-enum Tab {
+export enum SettingsTab {
   Advanced = 'Advanced',
   Audio = 'Audio',
+  Spotify = 'Spotify',
   TrackInfo = 'Track Info',
   Visualization = 'Visualization',
   Window = 'Window',
@@ -70,12 +72,20 @@ const getDefaultValues = (initialValues: Settings, displays: DisplayData[]): Set
 interface Props {
   initialValues: Settings;
   displays: DisplayData[];
+  initialTab?: SettingsTab;
   onClose: () => void;
   onSave: (data: Settings, isReset?: boolean) => void;
   onLogout: () => void;
 }
 
-export const SettingsWindow: FunctionComponent<Props> = ({ initialValues, displays, onClose, onSave, onLogout }) => {
+export const SettingsWindow: FunctionComponent<Props> = ({
+  initialValues,
+  displays,
+  initialTab,
+  onClose,
+  onSave,
+  onLogout,
+}) => {
   const methods = useForm<Settings>({
     defaultValues: getDefaultValues(initialValues, displays),
   });
@@ -124,24 +134,29 @@ export const SettingsWindow: FunctionComponent<Props> = ({ initialValues, displa
       <Form onSubmit={handleSubmit(onSubmit)}>
         <FormProvider {...methods}>
           <TabsWrapper>
-            <StyledTabs defaultValue={Tab.Window} color="gray" variant="default" radius="md">
+            <StyledTabs defaultValue={initialTab ?? SettingsTab.Window} color="gray" variant="default" radius="md">
               <Tabs.List>
-                <Tabs.Tab value={Tab.Window} icon={<i className="fa-solid fa-window-maximize" />} />
-                <Tabs.Tab value={Tab.TrackInfo} icon={<i className="fa-solid fa-circle-info" />} />
-                <Tabs.Tab value={Tab.Visualization} icon={<i className="fa-solid fa-chart-simple" />} />
-                <Tabs.Tab value={Tab.Audio} icon={<i className="fa-solid fa-headphones" />} />
-                <Tabs.Tab value={Tab.Advanced} icon={<i className="fa-solid fa-gears" />} />
+                <Tabs.Tab value={SettingsTab.Window} icon={<i className="fa-solid fa-window-maximize" />} />
+                <Tabs.Tab value={SettingsTab.TrackInfo} icon={<i className="fa-solid fa-circle-info" />} />
+                <Tabs.Tab value={SettingsTab.Visualization} icon={<i className="fa-solid fa-chart-simple" />} />
+                <Tabs.Tab value={SettingsTab.Audio} icon={<i className="fa-solid fa-headphones" />} />
+                <Tabs.Tab value={SettingsTab.Advanced} icon={<i className="fa-solid fa-gears" />} />
+                <Tabs.Tab value={SettingsTab.Spotify} icon={<i className="fa-brands fa-spotify" />} />
               </Tabs.List>
 
-              <Tabs.Panel value={Tab.Window}>
+              <Tabs.Panel value={SettingsTab.Spotify}>
+                <SpotifySettings />
+              </Tabs.Panel>
+
+              <Tabs.Panel value={SettingsTab.Window}>
                 <WindowSettings />
               </Tabs.Panel>
 
-              <Tabs.Panel value={Tab.TrackInfo}>
+              <Tabs.Panel value={SettingsTab.TrackInfo}>
                 <TrackInfoSettings />
               </Tabs.Panel>
 
-              <Tabs.Panel value={Tab.Visualization}>
+              <Tabs.Panel value={SettingsTab.Visualization}>
                 <VisualizationSettings
                   displays={displays}
                   defaultVisualizationId={initialValues.visualizationId}
@@ -149,11 +164,11 @@ export const SettingsWindow: FunctionComponent<Props> = ({ initialValues, displa
                 />
               </Tabs.Panel>
 
-              <Tabs.Panel value={Tab.Audio}>
+              <Tabs.Panel value={SettingsTab.Audio}>
                 <AudioSettings />
               </Tabs.Panel>
 
-              <Tabs.Panel value={Tab.Advanced}>
+              <Tabs.Panel value={SettingsTab.Advanced}>
                 <AdvancedSettings />
               </Tabs.Panel>
             </StyledTabs>

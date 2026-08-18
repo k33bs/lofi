@@ -43,7 +43,9 @@ two minutes and requires no coding:
    - **Which API/SDKs are you planning to use?**: check **Web API**
    - accept the Developer Terms and hit **Save**
 3. Open your new app's page and copy its **Client ID**.
-4. Start Lofi and paste the Client ID into the field on the welcome screen, then log in.
+4. Start Lofi and press **Log in**: with no Client ID configured it opens Lofi's settings on
+   the Spotify tab, which walks you through these same steps. Paste your Client ID there,
+   save, and log in.
 
 Notes:
 

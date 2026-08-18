@@ -22,7 +22,7 @@ import { CurrentlyPlayingActions } from '../reducers/currently-playing.reducer';
 import { SettingsActionType } from '../reducers/settings.reducer';
 import { About } from '../windows/about';
 import { FullscreenVisualizer } from '../windows/fullscreen-visualizer';
-import { SettingsWindow } from '../windows/settings';
+import { SettingsTab, SettingsWindow } from '../windows/settings';
 import { Cover } from './cover';
 import { Welcome } from './welcome';
 
@@ -82,6 +82,7 @@ const VisibleUi = styled.div`
 export const App: FunctionComponent = () => {
   const [shouldShowAbout, setShouldShowAbout] = useState(false);
   const [shouldShowSettings, setShouldShowSettings] = useState(wasSettingsOpen);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab | undefined>(undefined);
 
   useEffect(() => {
     wasSettingsOpen = shouldShowSettings;
@@ -357,10 +358,16 @@ export const App: FunctionComponent = () => {
       className="click-on"
       style={cornerRadius ? { borderRadius: `${cornerRadius}%`, overflow: 'hidden' } : {}}>
       {shouldShowSettings && (
-        <WindowPortal onUnload={() => setShouldShowSettings(false)} name={WindowName.Settings}>
+        <WindowPortal
+          onUnload={() => {
+            setShouldShowSettings(false);
+            setSettingsTab(undefined);
+          }}
+          name={WindowName.Settings}>
           <SettingsWindow
             initialValues={state}
             displays={displays}
+            initialTab={settingsTab}
             onSave={handleSettingsSave}
             onClose={() => setShouldShowSettings(false)}
             onLogout={() => updateTokens(null)}
@@ -391,7 +398,12 @@ export const App: FunctionComponent = () => {
           onVisualizationCycle={handleVisualizationCycle}
         />
       ) : (
-        <Welcome />
+        <Welcome
+          onSetupNeeded={() => {
+            setSettingsTab(SettingsTab.Spotify);
+            setShouldShowSettings(true);
+          }}
+        />
       )}
     </VisibleUi>
   );
