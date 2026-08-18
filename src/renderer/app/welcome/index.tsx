@@ -3,6 +3,8 @@ import styled from 'styled-components';
 
 import { VisualizationType } from '../../../models/settings';
 import { LoginButton } from '../../components';
+import { ClientIdGate } from '../../components/client-id-gate';
+import { useSettings } from '../../contexts/settings.context';
 import wavesImage from '../../static/waves.gif';
 import Menu from '../cover/menu';
 
@@ -48,18 +50,23 @@ const WelcomeControls = styled.div`
   z-index: 2;
 `;
 
-export const Welcome: FunctionComponent = () => (
-  <div className="full">
-    <Menu isWelcome visualizationType={VisualizationType.None} />
-    <WelcomeContent className="welcome-content centered draggable">
-      <Brand className="brand draggable">
-        lo
-        <BrandHighlight className="brand-highlight draggable">fi</BrandHighlight>
-      </Brand>
-      <BrandTagLine className="brand-tagline draggable">a tiny player</BrandTagLine>
-    </WelcomeContent>
-    <WelcomeControls className="centered controls draggable">
-      <LoginButton />
-    </WelcomeControls>
-  </div>
-);
+export const Welcome: FunctionComponent = () => {
+  const { state } = useSettings();
+  const hasClientId = !!state?.spotifyClientId;
+
+  return (
+    <div className="full">
+      <Menu isWelcome visualizationType={VisualizationType.None} />
+      <WelcomeContent className="welcome-content centered draggable">
+        <Brand className="brand draggable">
+          lo
+          <BrandHighlight className="brand-highlight draggable">fi</BrandHighlight>
+        </Brand>
+        <BrandTagLine className="brand-tagline draggable">a tiny player</BrandTagLine>
+      </WelcomeContent>
+      <WelcomeControls className="centered controls draggable">
+        {hasClientId ? <LoginButton /> : <ClientIdGate />}
+      </WelcomeControls>
+    </div>
+  );
+};

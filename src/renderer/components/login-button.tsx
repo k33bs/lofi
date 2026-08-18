@@ -1,7 +1,8 @@
 import React, { FunctionComponent, useMemo } from 'react';
 import styled from 'styled-components';
 
-import { getAuthUrl, startAuthServer } from '../../main/auth';
+import { getAuthUrl, setAuthClientId, startAuthServer } from '../../main/auth';
+import { useSettings } from '../contexts/settings.context';
 
 const Link = styled.a`
   margin: auto;
@@ -34,7 +35,13 @@ const SpotifyLogo = styled.i`
 `;
 
 export const LoginButton: FunctionComponent = () => {
-  const authUrl = useMemo(getAuthUrl, []);
+  const { state } = useSettings();
+  const clientId = state?.spotifyClientId ?? '';
+  // the auth url embeds the client id, so it must be set before building the url
+  const authUrl = useMemo(() => {
+    setAuthClientId(clientId);
+    return getAuthUrl();
+  }, [clientId]);
   return (
     <Link className="login-btn" target="auth" href={authUrl} onClick={startAuthServer}>
       <SpotifyLogo className="fab fa-spotify" />

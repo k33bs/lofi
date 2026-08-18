@@ -27,6 +27,31 @@ Lofi is a mini Spotify player with visualizations. It is _not_ a replacement for
 - Visualization-ready (WebGL)
 - ≤ 100MB memory footprint
 
+# Connecting to Spotify
+
+Spotify's Web API rules no longer allow apps like Lofi to ship a shared API key: every user
+registers their own (free) Spotify application and gives Lofi its Client ID. It takes about
+two minutes and requires no coding:
+
+1. Open the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) (log in
+   with your regular Spotify account) and click **Create app**, or go directly to the
+   [create form](https://developer.spotify.com/dashboard/create).
+2. Fill in the form:
+   - **App name / description**: anything you like, e.g. `lofi player`
+   - **Website**: leave empty
+   - **Redirect URIs**: enter exactly `http://127.0.0.1:41419` and click **Add**
+   - **Which API/SDKs are you planning to use?**: check **Web API**
+   - accept the Developer Terms and hit **Save**
+3. Open your new app's page and copy its **Client ID**.
+4. Start Lofi and paste the Client ID into the field on the welcome screen, then log in.
+
+Notes:
+
+- Playback controls (play/pause/skip/volume) require Spotify **Premium**; free accounts can
+  still see track info and cover art.
+- Your app runs in Spotify's *development mode*, which is limited to your own account plus
+  up to 25 users you explicitly add under **User Management** in the dashboard.
+
 # Building
 
 To build, you'll need `node-gyp`, a compatible Python version (2.x), and your operating system's SDK (Microsoft Build Tools or Xcode).
