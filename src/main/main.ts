@@ -211,14 +211,6 @@ const registerIpcHandlers = (): void => {
       }
       setAlwaysOnTop({ window: mainWindow, isAlwaysOnTop });
       mainWindow.setSkipTaskbar(!isVisibleInTaskbar);
-      // skipTaskbar is a no-op on macOS; the dock icon is the taskbar equivalent
-      if (process.platform === 'darwin') {
-        if (isVisibleInTaskbar) {
-          app.dock.show();
-        } else {
-          app.dock.hide();
-        }
-      }
       showDevTool(mainWindow, isDebug);
 
       mainWindow.setBounds({ x, y, height: size, width: size });
@@ -442,7 +434,9 @@ app.on('ready', () => {
   registerIpcHandlers();
   createMainWindow();
 
-  if (process.platform === 'darwin' && !settings?.isVisibleInTaskbar) {
+  // a menu-bar widget must never occupy the macOS Dock; the tray icon is
+  // the app's home ("Display in taskbar" keeps its meaning on Windows/Linux)
+  if (process.platform === 'darwin') {
     app.dock.hide();
   }
 

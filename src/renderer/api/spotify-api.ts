@@ -73,6 +73,11 @@ class SpotifyApi {
 
   private refreshToken: string;
 
+  // epoch ms until which Spotify is rate-limiting us, or 0 when not throttled
+  getThrottledUntil(): number {
+    return this.isThrottled && this.throttleTime > new Date().getTime() ? this.throttleTime : 0;
+  }
+
   async updateTokens(data: AuthData): Promise<SpotifyUserProfile> {
     this.accessToken = data?.access_token;
     this.refreshToken = data?.refresh_token;
