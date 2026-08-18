@@ -63,10 +63,10 @@ export const Waiting: FunctionComponent = () => {
       </p>
       {throttledUntil ? (
         <Caption className="draggable">
-          Spotify is rate-limiting this app — try again in {formatWait(throttledUntil)}
+          Spotify is rate-limiting this app, try again in {formatWait(throttledUntil)}
         </Caption>
       ) : (
-        <Caption className="draggable">nothing playing — press play in Spotify</Caption>
+        <Caption className="draggable">nothing playing, press play in Spotify</Caption>
       )}
     </WaitingWrapper>
   );

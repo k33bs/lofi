@@ -74,7 +74,7 @@ export const ClientIdGate: FunctionComponent = () => {
         Continue
       </SaveButton>
       <HelpLink type="button" onClick={openCreateApp}>
-        Create one free at developer.spotify.com — use redirect URI http://127.0.0.1:41419
+        Create one free at developer.spotify.com, use redirect URI http://127.0.0.1:41419
       </HelpLink>
     </Gate>
   );

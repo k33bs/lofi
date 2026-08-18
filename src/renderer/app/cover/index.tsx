@@ -161,7 +161,7 @@ export const Cover: FunctionComponent<Props> = ({ settings, message, onVisualiza
 
     try {
       const currentlyPlaying = await SpotifyApiInstance.getCurrentlyPlaying();
-      // no response means no active device — seeking would just 404
+      // no response means no active device, seeking would just 404
       if (currentlyPlaying && !currentlyPlaying.is_playing) {
         await SpotifyApiInstance.seek(state.progress);
       }
@@ -228,7 +228,7 @@ export const Cover: FunctionComponent<Props> = ({ settings, message, onVisualiza
     };
   }, [handlePlaybackChanged, trackInfoRefreshTimeInSeconds]);
 
-  // ponytail: no interval for liked-status — it only changes on track change or
+  // ponytail: no interval for liked-status, it only changes on track change or
   // heart click, and both already call refreshTrackLiked; halves the API traffic
   useEffect(() => {
     const keepAliveIntervalId = setInterval(keepAlive, ONE_MINUTE);

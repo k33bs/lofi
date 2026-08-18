@@ -75,13 +75,13 @@ export const AccountSettings: FunctionComponent<Props> = ({ onLogout, isLoggedIn
   return (
     <InfoRow>
       {!userProfile && isLoggedIn && (
-        // logged in but the profile fetch failed (rate limit, offline) —
+        // logged in but the profile fetch failed (rate limit, offline) -
         // the logout control must stay reachable regardless
         <>
           <NoAvatar className="fa-solid fa-user-ninja" />
           <InfoWrapper>
             <UserInformation>
-              <UserName>Signed in — profile unavailable right now</UserName>
+              <UserName>Signed in, profile unavailable right now</UserName>
               <LogoutButton
                 type="button"
                 className="unstyled-button"

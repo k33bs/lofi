@@ -70,7 +70,7 @@ const LikeIcon = styled(ControlIcon)`
 
 const moveSongProgress = async (isForward: boolean, distInSec: number): Promise<void> => {
   const currentlyPlaying = await SpotifyApiInstance.getCurrentlyPlaying();
-  // null means no active device — nothing to seek
+  // null means no active device, nothing to seek
   if (!currentlyPlaying) {
     return;
   }

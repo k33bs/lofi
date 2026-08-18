@@ -8,7 +8,7 @@ import { StyleSheetManager } from 'styled-components';
 const copyStyles = (source: Document, target: { head: { appendChild: (arg0: unknown) => void } }): void => {
   Array.from(source.styleSheets).forEach((styleSheet: CSSStyleSheet) => {
     // styled-components and emotion rules are injected live into the child
-    // window (StyleSheetManager target / emotion cache container) — copying
+    // window (StyleSheetManager target / emotion cache container), copying
     // them here would duplicate every rule as a stale snapshot
     const owner = styleSheet.ownerNode as Element | null;
     if (owner?.hasAttribute?.('data-styled') || owner?.hasAttribute?.('data-emotion')) {
@@ -123,7 +123,7 @@ export const WindowPortal = memo(
     }, []);
 
     // styled-components and emotion (Mantine) inject rules lazily, so the one-shot
-    // copyStyles snapshot misses components first rendered inside the portal —
+    // copyStyles snapshot misses components first rendered inside the portal -
     // point both engines at the child window's head instead
     // the key MUST stay 'mantine': emotion uses it as the class prefix, and the
     // app's .mantine-* selector overrides die under any other prefix

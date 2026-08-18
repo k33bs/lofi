@@ -262,7 +262,7 @@ export const App: FunctionComponent = () => {
     ipcRenderer.on(IpcMessage.SideChanged, onSideChanged);
     document.getElementById('app-body')?.addEventListener('mousedown', onMouseDown);
 
-    // ask main for displays — covers recreated windows and crash-recovery
+    // ask main for displays, covers recreated windows and crash-recovery
     // remounts; main also pushes once on ready-to-show
     ipcRenderer.send(IpcMessage.WindowReady);
 
@@ -291,7 +291,7 @@ export const App: FunctionComponent = () => {
   const handleSettingsSave = useCallback(
     (data?: Settings, isReset = false) => {
       // the form snapshots x/y when settings opens; saving must not teleport the
-      // window back there — keep the live position. Reset passes isReset
+      // window back there, keep the live position. Reset passes isReset
       // explicitly (x/y sniffing misfires on fresh installs where x/y are -1).
       const merged = isReset ? data : { ...data, x: state.x, y: state.y };
       dispatch({

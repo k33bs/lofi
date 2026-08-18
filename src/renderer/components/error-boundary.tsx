@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<PropsWithChildren, State> {
       if (errorCount > MAX_BURST_ERRORS) {
         return (
           <div style={{ background: '#333', color: 'white', height: '100%', padding: '1rem', fontSize: '0.75rem' }}>
-            lofi crashed repeatedly — quit and restart it from the menu bar icon.
+            lofi crashed repeatedly, quit and restart it from the menu bar icon.
           </div>
         );
       }

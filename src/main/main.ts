@@ -156,7 +156,7 @@ const registerIpcHandlers = (): void => {
     };
 
     // a gap between frames means the previous drag ended without WindowMoved
-    // (crash mid-drag) — treat this frame as a fresh drag so stale bounds self-heal
+    // (crash mid-drag), treat this frame as a fresh drag so stale bounds self-heal
     if (Date.now() - lastMovingAt > DRAG_IDLE_RESET_MS) {
       initialBounds = null;
     }
@@ -280,7 +280,7 @@ const createMainWindow = (): void => {
   mainWindow.on('resized', () => {
     // setBounds during a drag can echo size changes on scaled displays (see #118);
     // reacting to those mid-drag fights the drag loop and flings the window.
-    // Gate on recent drag activity, not bare initialBounds — a crash mid-drag
+    // Gate on recent drag activity, not bare initialBounds, a crash mid-drag
     // could otherwise leave resizing disabled forever
     if (initialBounds && Date.now() - lastMovingAt < DRAG_IDLE_RESET_MS) {
       return;
@@ -434,12 +434,6 @@ app.on('ready', () => {
   registerIpcHandlers();
   createMainWindow();
 
-  // a menu-bar widget must never occupy the macOS Dock; the tray icon is
-  // the app's home ("Display in taskbar" keeps its meaning on Windows/Linux)
-  if (process.platform === 'darwin') {
-    app.dock.hide();
-  }
-
   tray = new Tray(icon);
 
   const contextMenu = Menu.buildFromTemplate([
@@ -473,6 +467,14 @@ app.on('ready', () => {
   ]);
   tray.setContextMenu(contextMenu);
   tray.setToolTip(`lofi v${version}`);
+
+  // a menu-bar widget must never occupy the macOS Dock. This must run after
+  // launch finishes: Electron re-asserts the Regular policy during startup,
+  // so setting it earlier gets overridden.
+  if (process.platform === 'darwin') {
+    app.setActivationPolicy('accessory');
+    app.dock?.hide();
+  }
 });
 
 // not emitted for app.quit(), so the tray Exit item still quits normally
